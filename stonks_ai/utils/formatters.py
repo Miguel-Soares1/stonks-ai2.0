@@ -4,7 +4,11 @@ Utilitários de formatação para exibição de dados financeiros.
 Formata moeda, percentuais, datas, números grandes, etc.
 """
 
+import copy
+import os
+import re
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 
@@ -125,3 +129,58 @@ def build_stock_table_rows(
         rows.append(row)
 
     return rows
+
+
+def _mask_user_path(value: str) -> str:
+    """Substitui o caminho absoluto do usuário por um placeholder seguro.
+
+    Ex: C:\\Users\\username\\... -> ~\\...\\
+    """
+    if not isinstance(value, str):
+        return value
+
+    user_home = Path.home()
+
+    # Tenta converter para caminho relativo ao home directory
+    try:
+        p = Path(value)
+        relative = p.relative_to(user_home)
+        return "~" / relative
+    except (ValueError, TypeError):
+        pass
+
+    # Fallback: regex para Windows — C:\Users\NOME\... -> ~\...\
+    win_user_pattern = re.compile(
+        r"([a-zA-Z]:\\?)[Uu]sers\\[^\\]+\\?",
+    )
+    result = win_user_pattern.sub(r"~\...\\", value, count=1)
+
+    # Fallback: regex para Unix — /home/NOME/... -> ~/.../
+    unix_user_pattern = re.compile(
+        r"/home/[^/\s]+/?",
+    )
+    result = unix_user_pattern.sub(r"~/.../", result, count=1)
+
+    return result
+
+
+def sanitize_config_for_display(config_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Retorna uma cópia da config com caminhos pessoais mascarados.
+
+    Remove ou substitui informações como caminhos absolutos contendo
+    o nome de usuário do sistema, antes de exibir em tela.
+
+    Args:
+        config_data: Dicionário completo de configuração.
+
+    Returns:
+        Cópia do dicionário com caminhos sanitizados.
+    """
+    sanitized = copy.deepcopy(config_data)
+
+    # Sanitiza database.path se existir
+    db_path = sanitized.get("database", {}).get("path")
+    if db_path:
+        sanitized["database"]["path"] = _mask_user_path(db_path)
+
+    return sanitized

@@ -8,7 +8,7 @@
 ## ADR 001: Uso de LLM Local via Ollama
 
 **Status:** ✅ Aceito  
-**Data:** 2024  
+**Data:** 2026  
 **Tipo:** 🏗️ Fundação
 
 ### Contexto
@@ -37,7 +37,7 @@ Optamos por **Ollama** com modelo padrão `llama3.2:3b`, executando localmente.
 ## ADR 002: SQLite como Banco de Dados
 
 **Status:** ✅ Aceito  
-**Data:** 2024  
+**Data:** 2026  
 **Tipo:** 🏗️ Fundação
 
 ### Contexto
@@ -66,7 +66,7 @@ Optamos por **SQLite** com SQLAlchemy 2.0 e WAL mode.
 ## ADR 003: Click + Rich para CLI
 
 **Status:** ✅ Aceito  
-**Data:** 2024  
+**Data:** 2026  
 **Tipo:** 🏗️ Fundação
 
 ### Contexto
@@ -95,7 +95,7 @@ Optamos por **Click** para definição de comandos e **Rich** para saída format
 ## ADR 004: yfinance como Fonte de Dados de Ações
 
 **Status:** ✅ Aceito  
-**Data:** 2024  
+**Data:** 2026  
 **Tipo:** 🏗️ Fundação
 
 ### Contexto
@@ -125,7 +125,7 @@ Optamos por **yfinance** (biblioteca Python que consome Yahoo Finance).
 ## ADR 005: Separação em Agentes
 
 **Status:** ✅ Aceito  
-**Data:** 2024  
+**Data:** 2026  
 **Tipo:** 🏗️ Design
 
 ### Contexto
@@ -281,7 +281,7 @@ Adotamos um sistema de **códigos de erro** no formato `E-NNN` e `DB-NNN`, com d
 ## ADR 010: Python Puro sem Type Hints Rigorosos
 
 **Status:** ✅ Aceito  
-**Data:** 2024  
+**Data:** 2026  
 **Tipo:** 🏗️ Fundação
 
 ### Contexto
@@ -337,7 +337,7 @@ Todo o código Streamlit foi colocado em **um único arquivo** [`webapp/app.py`]
 ## ADR 012: Gerenciamento de Configuração via YAML
 
 **Status:** ✅ Aceito  
-**Data:** 2024  
+**Data:** 2026  
 **Tipo:** 🏗️ Fundação
 
 ### Contexto

@@ -521,8 +521,11 @@ def config_cmd(show: bool, set_key: Optional[tuple]):
 
     if show:
         import yaml
+        from stonks_ai.utils.formatters import sanitize_config_for_display
+
+        clean_config = sanitize_config_for_display(config.data)
         console.print("[bold cyan]⚙️ Configuração Atual:[/]")
-        console.print(yaml.dump(config.data, default_flow_style=False))
+        console.print(yaml.dump(clean_config, default_flow_style=False))
         return
 
     console.print("[yellow]Use --show para ver config ou --set KEY VALUE para alterar.[/]")

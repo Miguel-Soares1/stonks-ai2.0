@@ -1089,43 +1089,43 @@ def _render_watchlist_table(limit: Optional[int] = None):
     try:
         from stonks_ai.models.watchlist import WatchlistItem
 
+        rows = []
         with db.session() as session:
             query = session.query(WatchlistItem).order_by(WatchlistItem.added_at.desc())
             if limit:
                 query = query.limit(limit)
             items = query.all()
 
-        if not items:
-            st.info("📋 Watchlist vazia. Adicione tickers usando o formulário abaixo.")
-            return
+            if not items:
+                st.info("📋 Watchlist vazia. Adicione tickers usando o formulário abaixo.")
+                return
 
-        rows = []
-        for item in items:
-            try:
-                q = financial_agent.get_quote(item.ticker, item.exchange)
-                rows.append(
-                    {
-                        "Ticker": q.ticker,
-                        "Bolsa": item.exchange,
-                        "Preço": format_currency(q.price, q.currency),
-                        "Variação": f"{q.change_percent:+.2f}%",
-                        "Alvo": (
-                            format_currency(item.target_price, q.currency)
-                            if item.target_price
-                            else "-"
-                        ),
-                    }
-                )
-            except StockCollectorError:
-                rows.append(
-                    {
-                        "Ticker": item.ticker,
-                        "Bolsa": item.exchange,
-                        "Preço": "Erro",
-                        "Variação": "-",
-                        "Alvo": "-",
-                    }
-                )
+            for item in items:
+                try:
+                    q = financial_agent.get_quote(item.ticker, item.exchange)
+                    rows.append(
+                        {
+                            "Ticker": q.ticker,
+                            "Bolsa": item.exchange,
+                            "Preço": format_currency(q.price, q.currency),
+                            "Variação": f"{q.change_percent:+.2f}%",
+                            "Alvo": (
+                                format_currency(item.target_price, q.currency)
+                                if item.target_price
+                                else "-"
+                            ),
+                        }
+                    )
+                except StockCollectorError:
+                    rows.append(
+                        {
+                            "Ticker": item.ticker,
+                            "Bolsa": item.exchange,
+                            "Preço": "Erro",
+                            "Variação": "-",
+                            "Alvo": "-",
+                        }
+                    )
 
         st.dataframe(
             pd.DataFrame(rows),
@@ -1201,14 +1201,16 @@ def page_watchlist():
             try:
                 from stonks_ai.models.watchlist import WatchlistItem
 
+                ticker_options = {}
                 with db.session() as session:
                     items = session.query(WatchlistItem).all()
+                    if items:
+                        ticker_options = {
+                            f"{item.ticker} ({item.exchange})": item.id
+                            for item in items
+                        }
 
-                if items:
-                    ticker_options = {
-                        f"{item.ticker} ({item.exchange})": item.id
-                        for item in items
-                    }
+                if ticker_options:
                     to_remove = st.selectbox(
                         "Selecione para remover",
                         list(ticker_options.keys()),
@@ -1242,7 +1244,10 @@ def page_config():
         st.markdown("### Configuração Atual")
         import yaml
 
-        config_yaml = yaml.dump(config.data, default_flow_style=False, allow_unicode=True)
+        from stonks_ai.utils.formatters import sanitize_config_for_display
+
+        clean_config = sanitize_config_for_display(config.data)
+        config_yaml = yaml.dump(clean_config, default_flow_style=False, allow_unicode=True)
         st.code(config_yaml, language="yaml")
 
     with tab2:
@@ -1333,12 +1338,14 @@ def page_config():
 
         # Info do sistema
         st.markdown("### ℹ️ Informações do Sistema")
+        from stonks_ai.utils.formatters import _mask_user_path
+
         info_col1, info_col2 = st.columns(2)
         with info_col1:
             st.markdown(f"**Versão:** {__version__}")
-            st.markdown(f"**Banco:** {db.db_path}")
+            st.markdown(f"**Banco:** {_mask_user_path(str(db.db_path))}")
         with info_col2:
-            st.markdown(f"**Config:** {config.config_path}")
+            st.markdown(f"**Config:** {_mask_user_path(str(config.config_path))}")
             st.markdown(
                 f"**LLM:** {config.get('llm', 'model', default='N/A')} "
                 f"em {config.get('llm', 'endpoint', default='N/A')}"

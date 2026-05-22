@@ -152,7 +152,11 @@ class Config:
     @property
     def db_path(self) -> Path:
         """Caminho completo do arquivo do banco SQLite."""
-        return Path(self.get("database", "path", default=str(DEFAULT_DB_PATH)))
+        path = self.get("database", "path", default=str(DEFAULT_DB_PATH))
+        p = Path(path)
+        if not p.is_absolute():
+            p = BASE_DIR / p
+        return p.resolve()
 
     @property
     def llm_model(self) -> str:

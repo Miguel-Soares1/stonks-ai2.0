@@ -20,10 +20,8 @@ env/
 *.swo
 *~
 
-# Local Data
-data/*.db
-data/config.yaml
-data/*.log
+# Local Data (user-specific: DB, config, logs)
+data/
 
 # OS
 .DS_Store

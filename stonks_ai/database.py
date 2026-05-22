@@ -75,7 +75,10 @@ class Database:
 
             event.listen(self._engine, "connect", _set_sqlite_pragma)
 
-            self._session_factory = sessionmaker(bind=self._engine)
+            self._session_factory = sessionmaker(
+                bind=self._engine,
+                expire_on_commit=False,
+            )
 
         except DatabaseError:
             raise
