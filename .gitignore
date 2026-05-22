@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+
+# Virtual Environment
+venv/
+.venv/
+env/
+.env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Local Data
+data/*.db
+data/config.yaml
+data/*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Selenium
+geckodriver.log
+chromedriver.log
+
+# Ollama
+ollama_models/
+
+# Logs
+*.log
+logs/
+
+# Protected documents
+plans/
+docs/visao.md
+docs/arquitetura.md
+licoes.md

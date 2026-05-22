@@ -1,0 +1,1 @@
+"""Utilitários: formatação, gráficos, validação."""
