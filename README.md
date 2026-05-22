@@ -348,8 +348,8 @@ Distribuído sob a licença **MIT**. Veja o arquivo [`LICENSE`](LICENSE) para ma
 
 <div align="center">
 
-**Stonks AI** — Feito com ❤️ para a comunidade financeira brasileira
-
 [Relatar Bug](https://github.com/miguel7p/stonks-ai/issues) · [Solicitar Feature](https://github.com/miguel7p/stonks-ai/issues) · [Discutir](https://github.com/miguel7p/stonks-ai/discussions)
 
 </div>
+
+STONKS AI E UM PROJETO EM DESENVOLVIMENTO
