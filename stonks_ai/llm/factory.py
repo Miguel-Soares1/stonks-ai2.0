@@ -32,7 +32,7 @@ def _resolve_env_var(value: str) -> str:
     Resolve variáveis de ambiente em strings de configuração.
 
     Suporta os formatos:
-    - ${VAR_NAME} → valor da variável de ambiente
+    - ${VAR_NAME} → valor da variável de ambiente ou Streamlit Secret
     - ${VAR_NAME:-default} → valor da variável ou fallback
     - texto puro → retorna como está
     """
@@ -44,9 +44,27 @@ def _resolve_env_var(value: str) -> str:
 
     if ":-" in inner:
         var_name, default = inner.split(":-", 1)
-        return os.environ.get(var_name.strip(), default.strip())
+        var_name = var_name.strip()
+        default = default.strip()
+    else:
+        var_name = inner.strip()
+        default = ""
 
-    return os.environ.get(inner.strip(), "")
+    # 1. Tenta os.environ
+    env_value = os.environ.get(var_name)
+    if env_value:
+        return env_value
+
+    # 2. Tenta st.secrets (Streamlit Cloud)
+    try:
+        import streamlit as st
+        secret_value = st.secrets.get(var_name)
+        if secret_value:
+            return secret_value
+    except Exception:
+        pass
+
+    return default
 
 
 def create_llm_client(config: Optional[Config] = None) -> BaseLLMProvider:

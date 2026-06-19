@@ -24,9 +24,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from stonks_ai.agents.financial_agent import FinancialAgent
 from stonks_ai.agents.personal_finance_agent import PersonalFinanceAgent
+from stonks_ai.database import db
 from webapp.components.sidebar import render_sidebar
 from webapp.views import PAGE_REGISTRY
 from webapp.theme import get_theme_css
+
+# Garante que o banco de dados está inicializado (cria tabelas se necessario)
+db.initialize()
 
 st.set_page_config(
     page_title="Stonks AI",
