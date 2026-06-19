@@ -70,7 +70,7 @@ def print_banner():
 ╔══════════════════════════════════════════╗
 ║        🚀  S T O N K S  A I             ║
 ║    Assistente Financeiro Inteligente      ║
-║         B3 · NYSE · Vagas · IA           ║
+║       B3 · NYSE · Finanças · IA          ║
 ╚══════════════════════════════════════════╝
     """
     console.print(Panel(banner, style="bold cyan"), justify="center")

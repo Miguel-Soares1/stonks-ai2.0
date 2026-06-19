@@ -377,10 +377,121 @@ Optamos por **YAML** como formato de configuração, armazenado em [`data/config
 | 008 | Streamlit + Plotly | ✅ Aceito | Rápido, mesma linguagem, estado gerenciado |
 | 009 | Códigos de erro estruturados | ✅ Aceito | Rastreável, buscável, documentado |
 | 010 | Type hints moderados | ✅ Aceito | Equilíbrio clareza/agilidade |
-| 011 | WebApp em arquivo único | ⚠️ Aceito | Rápido, mas monolítico |
+| 011 | WebApp em arquivo único | ✅ Substituído | Refatorado em 12 módulos (ADR-013) |
 | 012 | Config YAML | ✅ Aceito | Legível, hierárquico, versionável |
+| 013 | Multi-Provider LLM + Fallback | ✅ Aceito | Ollama + DeepSeek + OpenAI, fallback chain |
+
+---
+
+## ADR 013: Arquitetura Multi-Provider LLM com Fallback Chain
+
+**Status:** ✅ Aceito  
+**Data:** 2026-06  
+**Tipo:** 🏗️ Refatoração
+
+### Contexto
+
+O ADR-001 determinou o uso exclusivo de Ollama como provider LLM. Com o tempo, identificámos limitações:
+1. A qualidade das análises fundamentalistas é limitada pelo modelo local (Llama 3.2 3B)
+2. Utilizadores sem GPU adequada têm latência elevada
+3. O sistema ficava completamente sem IA se o Ollama não estivesse disponível
+
+### Decisão
+
+Refatoramos o cliente LLM para uma arquitetura multi-provider com fallback chain:
+
+1. **Interface abstrata** `BaseLLMProvider` com métodos `generate()`, `generate_from_messages()`, `generate_stream()`, `is_available()`
+2. **Providers concretos:**
+   - `OllamaProvider` — execução local (refactor do antigo `OllamaClient`)
+   - `DeepSeekProvider` — API REST deepseek.com (~$0.14/1M tokens, melhor custo/benefício)
+   - `OpenAIProvider` — API REST openai.com (GPT-4o-mini, GPT-4o)
+   - `OpenAICompatibleProvider` — qualquer API OpenAI-compatible (OpenRouter, Groq, etc.)
+3. **Factory** `create_llm_client(config)` que instancia o provider correto
+4. **FallbackChain** — wrapper que tenta provider primário, cai no fallback (Ollama) se falhar
+5. **Suporte a variáveis de ambiente** na config (`${ENV_VAR}`)
+
+### Alternativas Consideradas
+
+| Alternativa | Prós | Contras |
+|---|---|---|
+| **Manter só Ollama** | Simplicidade | Sem fallback, qualidade limitada |
+| **Substituir Ollama por API** | Melhor qualidade | Perde privacidade, custo, offline |
+| **Multi-provider (escolhido)** | Flexibilidade, fallback, privacidade | Complexidade adicional |
+
+### Consequências
+
+- ✅ Sistema nunca fica sem IA (fallback chain)
+- ✅ Utilizador pode escolher entre privacidade (local) e qualidade (remoto)
+- ✅ Finanças pessoais podem permanecer 100% locais
+- ✅ Suporte a qualquer API OpenAI-compatible
+- ✅ Streaming via SSE para providers remotos
+- ❌ Mais código para manter (5 providers + factory + chain)
+- ❌ API keys precisam de ser geridas com segurança
+
+### Migração
+
+```yaml
+# Antes (apenas Ollama):
+llm:
+  model: llama3.2:3b
+  endpoint: http://localhost:11434
+
+# Depois (multi-provider):
+llm:
+  provider: deepseek          # ollama | deepseek | openai | openai_compatible
+  model: deepseek-chat
+  api_key: ${DEEPSEEK_API_KEY}
+  fallback_provider: ollama   # fallback local se API falhar
+```
+
+### Configuração Recomendada
+
+| Perfil | Provider | Custo mensal (est.) |
+|---|---|---|
+| Privacidade máxima | `ollama` | $0 |
+| Melhor custo/benefício | `deepseek` | ~$1-2 |
+| Melhor qualidade | `openai` (GPT-4o) | ~$5-10 |
+| Flexível | `openai_compatible` | Variável |
+
+---
+
+## ADR 014: Refatoração do WebApp Monolítico
+
+**Status:** ✅ Aceito  
+**Data:** 2026-06  
+**Tipo:** 🏗️ Refatoração
+
+### Contexto
+
+O ADR-011 registou a decisão de manter o webapp num único ficheiro (~2144 linhas) para prototipagem rápida. Com o crescimento do projeto, a manutenção tornou-se difícil e os testes impossíveis.
+
+### Decisão
+
+Refatoramos o `webapp/app.py` de 2144 linhas para 12 módulos (~90 linhas o router principal):
+
+```
+webapp/
+├── app.py              # Router principal (~90 linhas)
+├── theme.py            # Tema CSS escuro
+├── components/         # Componentes reutilizáveis
+│   ├── sidebar.py      # Barra lateral
+│   ├── metrics.py      # Cards de métricas
+│   └── charts.py       # Gráficos Plotly
+└── pages/              # Páginas (1 ficheiro por página)
+    ├── dashboard.py, chat.py, quote.py, history.py,
+    ├── analyze.py, compare.py, watchlist.py,
+    ├── finance.py, goals.py, alerts.py, config.py
+```
+
+### Consequências
+
+- ✅ Cada página é isolada e testável
+- ✅ Componentes reutilizáveis (sidebar, métricas, gráficos)
+- ✅ Navegação mais rápida (menos código para o Streamlit processar)
+- ✅ Fácil adicionar novas páginas
+- ❌ Mais ficheiros para gerir (12 vs 1)
 
 ---
 
 > Este documento deve ser atualizado sempre que uma nova decisão arquitetural for tomada.  
-> Consulte também: [`visao.md`](visao.md) | [`arquitetura.md`](arquitetura.md) | [`licoes.md`](../licoes.md)
+> Consulte também: [`MEMORY.md`](../MEMORY.md) | [`licoes.md`](../licoes.md)

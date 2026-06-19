@@ -8,7 +8,7 @@
 [![Version](https://img.shields.io/badge/version-0.1.0-blueviolet)](https://pypi.org/project/stonks-ai/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![Made with ❤️](https://img.shields.io/badge/Made%20with-%E2%9D%A4%EF%B8%8F-red)](https://github.com/miguel7p/stonks-ai)
+[![Made with ❤️](https://img.shields.io/badge/Made%20with-%E2%9D%A4%EF%B8%8F-red)](https://github.com/stonks-ai/stonks-ai)
 
 ---
 
@@ -300,15 +300,26 @@ pytest -v --tb=long
 
 ## 🗺️ Roadmap
 
+### ✅ Concluído (v0.1.0)
+- [x] **Multi-Provider LLM** — Ollama (local) + DeepSeek + OpenAI + OpenAI-compatible com fallback automático
+- [x] **WebApp Modular** — Refatorado de 2144 linhas monolíticas para 16 módulos
+- [x] **Finanças Pessoais** — Importação CSV/Excel/PDF, categorização, metas, alertas
+- [x] **Watchlist e Comparação** — Gerenciamento de ativos e comparação lado a lado
+
+### 🔜 Em Breve
 - [ ] **Suporte a Criptomoedas** — Integração com CoinGecko e CoinMarketCap
 - [ ] **Notificações em Tempo Real** — Alertas de preço alvo via desktop/email
-- [ ] **Relatório Periódico de Carteira** — Resumo automático por período
-- [ ] **Integração com Corretoras** — API para consulta de posições e geração de ordens
+- [ ] **Orçamento Mensal** — Limites por categoria com alertas de estouro
+- [ ] **Categorizador com IA** — Usar LLM para categorizar transações automaticamente
+
+### 📋 Planejado
 - [ ] **Interface TUI** — Modo texto interativo com [Textual](https://textual.textualize.io/)
 - [ ] **Modo Servidor (API REST)** — Endpoint HTTP para integração com outros sistemas
 - [ ] **Exportação de Relatórios** — Geração de relatórios em PDF e Excel
 - [ ] **Multi-idioma** — Suporte a inglês e espanhol na interface
 - [ ] **Plugins** — Sistema de extensões para coletores e análises personalizadas
+- [ ] **Integração com Corretoras** — API para consulta de posições e geração de ordens
+- [ ] **Carteira de Investimentos** — Portfolio tracker com rentabilidade
 
 ---
 
@@ -348,7 +359,7 @@ Distribuído sob a licença **MIT**. Veja o arquivo [`LICENSE`](LICENSE) para ma
 
 <div align="center">
 
-[Relatar Bug](https://github.com/miguel7p/stonks-ai/issues) · [Solicitar Feature](https://github.com/miguel7p/stonks-ai/issues) · [Discutir](https://github.com/miguel7p/stonks-ai/discussions)
+[Relatar Bug](https://github.com/stonks-ai/stonks-ai/issues) · [Solicitar Feature](https://github.com/stonks-ai/stonks-ai/issues) · [Discutir](https://github.com/stonks-ai/stonks-ai/discussions)
 
 </div>
 

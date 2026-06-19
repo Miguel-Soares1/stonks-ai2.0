@@ -39,12 +39,17 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "cache_ttl_minutes": 5,
     },
     "llm": {
-        "provider": "ollama",
+        "provider": "ollama",        # ollama | deepseek | openai | openai_compatible
         "model": "llama3.2:3b",
         "endpoint": "http://localhost:11434",
+        # Config para providers remotos (DeepSeek, OpenAI, etc.)
+        "api_key": "",               # API key ou ${ENV_VAR} para resolver do ambiente
+        "base_url": "",              # URL base da API (opcional para openai_compatible)
         "temperature": 0.3,
         "max_tokens": 2048,
         "timeout_seconds": 120,
+        # Fallback para IA local quando API remota falha
+        "fallback_provider": "ollama",
     },
     "finance": {
         "default_currency": "BRL",
@@ -167,6 +172,26 @@ class Config:
     def llm_endpoint(self) -> str:
         """Endpoint do serviço Ollama."""
         return self.get("llm", "endpoint", default="http://localhost:11434")
+
+    @property
+    def llm_provider(self) -> str:
+        """Tipo de provider LLM configurado."""
+        return self.get("llm", "provider", default="ollama")
+
+    @property
+    def llm_api_key(self) -> str:
+        """API key para provider remoto (pode conter ${ENV_VAR})."""
+        return self.get("llm", "api_key", default="")
+
+    @property
+    def llm_base_url(self) -> str:
+        """URL base para API OpenAI-compatible."""
+        return self.get("llm", "base_url", default="")
+
+    @property
+    def llm_fallback_provider(self) -> str:
+        """Provider de fallback quando o primário falha."""
+        return self.get("llm", "fallback_provider", default="ollama")
 
 
 # Singleton global

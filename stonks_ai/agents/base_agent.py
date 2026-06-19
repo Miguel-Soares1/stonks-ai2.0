@@ -4,7 +4,8 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 
 from stonks_ai.database import DatabaseError, db
-from stonks_ai.llm.client import LLMError, OllamaClient
+from stonks_ai.llm.base import BaseLLMProvider, LLMError
+from stonks_ai.llm.factory import create_llm_client
 from stonks_ai.llm.prompts import FINANCIAL_CHAT_SYSTEM_PROMPT
 
 
@@ -16,8 +17,8 @@ class AgentError(Exception):
 class BaseAgent(ABC):
     """Classe base abstrata para todos os agentes de IA."""
 
-    def __init__(self, llm_client: Optional[OllamaClient] = None):
-        self.llm = llm_client or OllamaClient()
+    def __init__(self, llm_client: Optional[BaseLLMProvider] = None):
+        self.llm = llm_client or create_llm_client()
         self._name = self.__class__.__name__
 
     def execute(self, *args, **kwargs) -> Any:

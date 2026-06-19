@@ -43,8 +43,12 @@ ollama_models/
 *.log
 logs/
 
-# Protected documents
+# Protected documents (dev only)
 plans/
 docs/visao.md
 docs/arquitetura.md
 licoes.md
+MEMORY.md
+
+# Site (separate project, WIP)
+site/

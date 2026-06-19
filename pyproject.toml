@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "stonks-ai"
 version = "0.1.0"
-description = "Assistente financeiro com IA via CLI - Análise de ações B3/NYSE e busca de vagas"
+description = "Assistente financeiro com IA via CLI - Análise de ações B3/NYSE e finanças pessoais"
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "MIT"}
@@ -35,7 +35,6 @@ dependencies = [
     "numpy>=1.24",
     "httpx>=0.25",
     "beautifulsoup4>=4.12",
-    "selenium>=4.15",
     "lxml>=4.9",
     "ollama>=0.1",
     "plotext>=5.2",
@@ -46,8 +45,6 @@ dependencies = [
     "pdfplumber>=0.10.0",
     "streamlit>=1.57",
     "plotly>=6.0",
-    "cloudscraper>=1.2.71",
-    "undetected-chromedriver>=3.5.0",
 ]
 
 [project.scripts]
