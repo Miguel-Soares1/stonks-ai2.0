@@ -1,0 +1,42 @@
+# Configuracao do site publico do Stonks AI
+# Deploy gratuito: Streamlit Community Cloud + GitHub Pages
+
+app:
+  name: "Stonks AI"
+  version: "0.1.0"
+  language: "pt-BR"
+  currency: "BRL"
+
+site:
+  title: "Stonks AI — Análise de Ações B3 e NYSE"
+  description: "Cotações em tempo real, gráficos e análise com IA. Grátis. Sem rastreamento."
+  ads:
+    enabled: false                    # Ativar quando tiver trafego
+    provider: "carbon"               # carbon | ethicalads | direct
+    carbon_ads_id: ""                # ID do Carbon Ads (gratis)
+  affiliate:
+    enabled: true
+    xp_link: "https://xp.com.br"
+    rico_link: "https://rico.com.vc"
+    clear_link: "https://clear.com.br"
+    interactive_brokers_link: "https://interactivebrokers.com"
+
+stocks:
+  default_exchange: "B3"
+  b3_suffix: ".SA"
+  cache_ttl_minutes: 5
+
+llm:
+  # IA gratuita para o site: Google Gemini (15 req/min gratis)
+  provider: "gemini"                 # gemini (gratis) | deepseek (pago) | groq (gratis)
+  model: "gemini-2.0-flash"         # Modelo gratuito do Google
+  # Para Gemini: obter chave gratuita em https://aistudio.google.com
+  api_key: "${GEMINI_API_KEY}"
+  temperature: 0.3
+  max_tokens: 2048
+
+ui:
+  theme: "dark"
+  show_ads: false
+  show_affiliate: true
+  show_premium_cta: true

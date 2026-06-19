@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stonks AI — Assistente Financeiro Inteligente</title>
+    <meta name="description" content="Análise de ações B3 e NYSE com IA. 100% privacidade. Grátis para sempre.">
+    <meta name="theme-color" content="#0a0a0a">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- HERO -->
+<!-- ═══════════════════════════════════════════════ -->
+<header class="hero">
+    <div class="hero-glow"></div>
+    <div class="hero-particles" id="particles"></div>
+
+    <nav class="nav">
+        <div class="nav-brand">
+            <span class="nav-logo">🚀</span>
+            <span class="nav-name">Stonks AI</span>
+        </div>
+        <div class="nav-links">
+            <a href="#features">Funcionalidades</a>
+            <a href="#pricing">Preços</a>
+            <a href="#how">Como usar</a>
+            <a href="https://github.com/miguel7p/stonks-ai" class="nav-github" target="_blank">GitHub</a>
+            <a href="/dashboard" class="btn btn-primary btn-sm">Abrir App</a>
+        </div>
+    </nav>
+
+    <div class="hero-content">
+        <div class="hero-badge">
+            <span class="badge-dot"></span> v0.1.0 • Open Source
+        </div>
+        <h1 class="hero-title">
+            O assistente financeiro<br>
+            <span class="gradient-text">que respeita a sua privacidade</span>
+        </h1>
+        <p class="hero-subtitle">
+            Análise de ações B3 e NYSE com inteligência artificial.
+            Sem rastreamento. Sem cookies. Sem partilha de dados.
+            <strong>Grátis para sempre.</strong>
+        </p>
+        <div class="hero-actions">
+            <a href="/dashboard" class="btn btn-primary btn-lg">
+                🚀 Experimentar Grátis
+                <span class="btn-shine"></span>
+            </a>
+            <a href="https://github.com/miguel7p/stonks-ai" class="btn btn-secondary btn-lg" target="_blank">
+                📦 Ver no GitHub
+            </a>
+        </div>
+        <div class="hero-terminal">
+            <div class="terminal-header">
+                <span class="terminal-dot red"></span>
+                <span class="terminal-dot yellow"></span>
+                <span class="terminal-dot green"></span>
+                <span class="terminal-title">stonks@terminal:~</span>
+            </div>
+            <div class="terminal-body">
+                <span class="terminal-prompt">$</span> stonks quote PETR4<br>
+                <span class="terminal-output">
+                ╔══════════════════════════════════╗<br>
+                ║  PETR4 (B3) — Petrobras PN      ║<br>
+                ╠══════════════════════════════════╣<br>
+                ║  Preço:    R$ 36,42  ▲ +2.15%   ║<br>
+                ║  Máxima:   R$ 36,80             ║<br>
+                ║  Mínima:   R$ 35,60             ║<br>
+                ║  Volume:   42.3M                 ║<br>
+                ╚══════════════════════════════════╝<br>
+                </span>
+                <span class="terminal-prompt">$</span> <span class="terminal-cursor">▌</span>
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- FEATURES -->
+<!-- ═══════════════════════════════════════════════ -->
+<section id="features" class="section">
+    <div class="section-header">
+        <h2>Tudo o que precisa para <span class="gradient-text">investir melhor</span></h2>
+        <p>Ferramentas profissionais sem o preço profissional. Zero tracking, zero partilha de dados.</p>
+    </div>
+
+    <div class="features-grid">
+        <div class="feature-card glass">
+            <div class="feature-icon">📊</div>
+            <h3>Cotações em Tempo Real</h3>
+            <p>Preço, variação, máxima, mínima, volume — B3 e NYSE/Nasdaq num instante.</p>
+        </div>
+
+        <div class="feature-card glass">
+            <div class="feature-icon">🤖</div>
+            <h3>Análise com IA</h3>
+            <p>Análise técnica e fundamentalista automática. A IA lê os números para si.</p>
+        </div>
+
+        <div class="feature-card glass">
+            <div class="feature-icon">📈</div>
+            <h3>Gráficos Interativos</h3>
+            <p>Candlestick, volume, comparação lado a lado. Profissional e intuitivo.</p>
+        </div>
+
+        <div class="feature-card glass">
+            <div class="feature-icon">🛡️</div>
+            <h3>Privacidade Total</h3>
+            <p>Dados nunca saem da sua máquina. Sem cookies. Sem rastreadores. Sem telemetria.</p>
+        </div>
+
+        <div class="feature-card glass">
+            <div class="feature-icon">💰</div>
+            <h3>Finanças Pessoais</h3>
+            <p>Importe extratos CSV/PDF, categorize despesas e acompanhe metas — tudo local.</p>
+        </div>
+
+        <div class="feature-card glass">
+            <div class="feature-icon">⚡</div>
+            <h3>Modo Terminal</h3>
+            <p>Para quem vive no CLI: comandos rápidos, gráficos ASCII, 100% teclado.</p>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- PRIVACY - DIFERENCIAL -->
+<!-- ═══════════════════════════════════════════════ -->
+<section id="privacy" class="section section-dark">
+    <div class="privacy-container">
+        <div class="privacy-left">
+            <span class="privacy-badge">🔒 Nosso compromisso</span>
+            <h2>A sua privacidade <span class="gradient-text">não é negociável</span></h2>
+            <p>
+                Enquanto outras plataformas rastreiam cada clique, vendem os seus dados
+                e analisam o seu perfil financeiro...
+            </p>
+
+            <div class="privacy-comparison">
+                <div class="privacy-col bad">
+                    <h4>❌ Outros</h4>
+                    <ul>
+                        <li>Cookies de rastreamento</li>
+                        <li>Perfil de investidor vendido</li>
+                        <li>Dados em servidores alheios</li>
+                        <li>Telemetria escondida</li>
+                        <li>Extratos bancários na nuvem</li>
+                    </ul>
+                </div>
+                <div class="privacy-col good">
+                    <h4>✅ Stonks AI</h4>
+                    <ul>
+                        <li>Zero cookies</li>
+                        <li>Zero rastreamento</li>
+                        <li>Dados só na sua máquina</li>
+                        <li>Código 100% aberto</li>
+                        <li>Extratos processados localmente</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="privacy-right">
+            <div class="privacy-card glass">
+                <div class="privacy-lock">🔐</div>
+                <h3>Criptografia End-to-End</h3>
+                <p>Mesmo no plano Cloud Sync, os seus dados são encriptados com chave que só você possui. Nem nós conseguimos ler.</p>
+            </div>
+            <div class="privacy-card glass">
+                <div class="privacy-lock">📂</div>
+                <h3>Open Source (MIT)</h3>
+                <p>Código aberto no GitHub. Qualquer pessoa pode auditar, modificar e contribuir. Transparência total.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- HOW IT WORKS -->
+<!-- ═══════════════════════════════════════════════ -->
+<section id="how" class="section">
+    <div class="section-header">
+        <h2>Comece em <span class="gradient-text">30 segundos</span></h2>
+        <p>Nada de formulários, nada de cartão de crédito, nada de registo.</p>
+    </div>
+
+    <div class="steps">
+        <div class="step glass">
+            <div class="step-number">1</div>
+            <div class="step-icon">📥</div>
+            <h3>Instale</h3>
+            <code>pip install stonks-ai</code>
+            <p>Um comando. Python 3.11+.</p>
+        </div>
+        <div class="step-arrow">→</div>
+        <div class="step glass">
+            <div class="step-number">2</div>
+            <div class="step-icon">⚡</div>
+            <h3>Inicialize</h3>
+            <code>stonks init</code>
+            <p>Cria banco de dados e configuração automaticamente.</p>
+        </div>
+        <div class="step-arrow">→</div>
+        <div class="step glass">
+            <div class="step-number">3</div>
+            <div class="step-icon">🚀</div>
+            <h3>Use</h3>
+            <code>stonks analyze PETR4</code>
+            <p>Análise completa com IA em segundos.</p>
+        </div>
+    </div>
+
+    <div class="quick-start">
+        <div class="quick-code glass">
+            <div class="terminal-header">
+                <span class="terminal-dot red"></span>
+                <span class="terminal-dot yellow"></span>
+                <span class="terminal-dot green"></span>
+                <span class="terminal-title">Quick Start</span>
+            </div>
+            <pre><code># 1. Instalar
+pip install stonks-ai
+
+# 2. Inicializar
+stonks init
+
+# 3. Consultar cotação
+stonks quote PETR4
+
+# 4. Análise com IA
+stonks analyze PETR4
+
+# 5. Comparar ações
+stonks compare PETR4 VALE3 ITUB4
+
+# 6. Web app local
+streamlit run webapp/app.py</code></pre>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- PRICING -->
+<!-- ═══════════════════════════════════════════════ -->
+<section id="pricing" class="section section-dark">
+    <div class="section-header">
+        <h2>Simples, <span class="gradient-text">transparente</span></h2>
+        <p>O essencial é grátis para sempre. Pague apenas se quiser funcionalidades avançadas.</p>
+    </div>
+
+    <div class="pricing-grid">
+        <div class="pricing-card glass">
+            <div class="pricing-header">
+                <h3>🆓 Grátis</h3>
+                <div class="pricing-price">R$ 0</div>
+                <p class="pricing-period">para sempre</p>
+            </div>
+            <ul class="pricing-features">
+                <li>✅ Cotações B3 e NYSE</li>
+                <li>✅ Gráficos interativos</li>
+                <li>✅ IA local (Ollama)</li>
+                <li>✅ Finanças pessoais</li>
+                <li>✅ CLI + Web App local</li>
+                <li>✅ Código aberto</li>
+                <li>✅ Zero rastreamento</li>
+            </ul>
+            <a href="/dashboard" class="btn btn-secondary btn-full">Começar Grátis</a>
+        </div>
+
+        <div class="pricing-card glass featured">
+            <div class="pricing-badge">🌟 Mais Popular</div>
+            <div class="pricing-header">
+                <h3>⭐ Premium</h3>
+                <div class="pricing-price">R$ 19</div>
+                <p class="pricing-period">/mês</p>
+            </div>
+            <ul class="pricing-features">
+                <li>✅ Tudo do Grátis</li>
+                <li>✅ IA avançada (DeepSeek/GPT)</li>
+                <li>✅ Alertas de preço</li>
+                <li>✅ Análise técnica (RSI, MACD)</li>
+                <li>✅ Sem ads</li>
+                <li>✅ Suporte prioritário</li>
+                <li>✅ Dashboards personalizados</li>
+            </ul>
+            <a href="#" class="btn btn-primary btn-full">Assinar Premium</a>
+        </div>
+
+        <div class="pricing-card glass">
+            <div class="pricing-header">
+                <h3>☁️ Cloud Sync</h3>
+                <div class="pricing-price">R$ 29</div>
+                <p class="pricing-period">/mês</p>
+            </div>
+            <ul class="pricing-features">
+                <li>✅ Tudo do Premium</li>
+                <li>✅ Sincronização E2E</li>
+                <li>✅ Watchlist na nuvem</li>
+                <li>✅ Backup automático</li>
+                <li>✅ Multi-dispositivo</li>
+                <li>✅ Histórico ilimitado</li>
+                <li>✅ Criptografia client-side</li>
+            </ul>
+            <a href="#" class="btn btn-secondary btn-full">Assinar Cloud</a>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- CTA -->
+<!-- ═══════════════════════════════════════════════ -->
+<section class="section cta-section">
+    <div class="cta-container glass">
+        <h2>Pronto para investir <span class="gradient-text">com inteligência</span>?</h2>
+        <p>Zero custo. Zero rastreamento. 100% open source. Comece agora.</p>
+        <div class="cta-actions">
+            <a href="/dashboard" class="btn btn-primary btn-lg">
+                🚀 Abrir Dashboard
+                <span class="btn-shine"></span>
+            </a>
+            <a href="https://github.com/miguel7p/stonks-ai" class="btn btn-secondary btn-lg" target="_blank">
+                ⭐ Dar Star no GitHub
+            </a>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- FOOTER -->
+<!-- ═══════════════════════════════════════════════ -->
+<footer class="footer">
+    <div class="footer-grid">
+        <div class="footer-brand">
+            <h3>🚀 Stonks AI</h3>
+            <p>Assistente financeiro inteligente com foco em privacidade. B3 · NYSE · Finanças · IA.</p>
+            <p class="footer-motto">Feito com ❤️ em Portugal</p>
+        </div>
+        <div class="footer-links">
+            <h4>Produto</h4>
+            <a href="#features">Funcionalidades</a>
+            <a href="#pricing">Preços</a>
+            <a href="#how">Como usar</a>
+            <a href="/dashboard">Dashboard</a>
+        </div>
+        <div class="footer-links">
+            <h4>Comunidade</h4>
+            <a href="https://github.com/miguel7p/stonks-ai" target="_blank">GitHub</a>
+            <a href="https://github.com/miguel7p/stonks-ai/issues" target="_blank">Reportar Bug</a>
+            <a href="https://github.com/miguel7p/stonks-ai/discussions" target="_blank">Discussões</a>
+            <a href="https://github.com/miguel7p/stonks-ai/blob/main/LICENSE" target="_blank">Licença MIT</a>
+        </div>
+        <div class="footer-links">
+            <h4>Legal</h4>
+            <a href="#">Privacidade</a>
+            <a href="#">Termos de Uso</a>
+            <p class="footer-disclaimer">
+                ⚠️ Não somos consultores financeiros. As análises são informativas e não constituem recomendação de investimento.
+            </p>
+        </div>
+    </div>
+    <div class="footer-bottom">
+        <p>&copy; 2026 Stonks AI. Open source sob licença MIT.</p>
+    </div>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>
