@@ -10,5 +10,5 @@ Módulos:
     - utils: Utilitários (formatação, gráficos, validação)
 """
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 __author__ = "Stonks AI Team"

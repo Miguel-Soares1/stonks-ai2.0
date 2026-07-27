@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "stonks-ai"
-version = "0.1.0"
+version = "0.1.1"
 description = "Assistente financeiro com IA via CLI - Análise de ações B3/NYSE e finanças pessoais"
 readme = "README.md"
 requires-python = ">=3.11"

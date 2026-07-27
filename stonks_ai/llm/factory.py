@@ -151,7 +151,8 @@ def _create_provider(
 
     try:
         if provider_type == "ollama":
-            endpoint = config.get("llm", "endpoint", default="http://localhost:11434")
+            raw_endpoint = config.get("llm", "endpoint", default="http://localhost:11434")
+            endpoint = _resolve_env_var(raw_endpoint)
             return OllamaProvider(
                 model=model,
                 endpoint=endpoint,
@@ -213,7 +214,8 @@ def _create_fallback(config: Config, fallback_type: str) -> Optional[BaseLLMProv
     if fallback_type == "ollama":
         try:
             model = config.get("llm", "model", default="llama3.2:3b")
-            endpoint = config.get("llm", "endpoint", default="http://localhost:11434")
+            raw_endpoint = config.get("llm", "endpoint", default="http://localhost:11434")
+            endpoint = _resolve_env_var(raw_endpoint)
             return OllamaProvider(
                 model=model,
                 endpoint=endpoint,

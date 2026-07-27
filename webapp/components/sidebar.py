@@ -105,12 +105,13 @@ def render_sidebar():
                 unsafe_allow_html=True,
             )
 
-        # LLM
+        # LLM — verificação leve (sem instanciar agente completo)
         try:
-            from stonks_ai.agents.financial_agent import FinancialAgent
+            from stonks_ai.llm.factory import create_llm_client
+            from stonks_ai.llm.base import LLMError
 
-            fa = FinancialAgent()
-            llm_ok = fa.check_llm_available()
+            llm = create_llm_client()
+            llm_ok = llm.is_available()
             llm_model = config.get("llm", "model", default="N/A")
             llm_provider = config.get("llm", "provider", default="ollama")
             icon = "🟢" if llm_ok else "🟡"
