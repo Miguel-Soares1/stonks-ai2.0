@@ -13,6 +13,8 @@ from pydantic import BaseModel, Field
 from desktop.state import personal_agent
 from desktop.streaming import require_llm, stream_text
 from stonks_ai.collectors.finance.categorizer import Categorizer
+from stonks_ai.llm.base import LLMError
+from stonks_ai.llm.client import get_local_llm_client
 from stonks_ai.utils import insights, recurrence
 from stonks_ai.utils.finance_utils import get_month_summary, get_multi_month_summary
 
@@ -201,7 +203,7 @@ def budget(year: Optional[int] = None, month: Optional[int] = None) -> Dict[str,
 
 @router.get("/category-rules")
 def category_rules() -> List[Dict[str, str]]:
-    """Regras aprendidas com as correções do usuário (estabelecimento -> categoria)."""
+    """Regras do usuário (correções) e da IA (estabelecimento -> categoria)."""
     return Categorizer.list_rules()
 
 
@@ -209,6 +211,31 @@ def category_rules() -> List[Dict[str, str]]:
 def category_rule_delete(merchant: str) -> None:
     if not Categorizer.delete_rule(merchant):
         raise _not_found("Regra")
+
+
+@router.get("/categorize-ai")
+def categorize_ai_pending() -> Dict[str, int]:
+    """Quantos estabelecimentos em "Outros" a IA ainda pode organizar."""
+    return personal_agent().categorizer.pending_for_llm()
+
+
+@router.post("/categorize-ai")
+def categorize_ai_run() -> Dict[str, Any]:
+    """Organiza um lote de estabelecimentos de "Outros" com a IA. O app chama até acabar.
+
+    Sempre a IA local: descrição de extrato não vai para a nuvem, mesmo com o chat
+    configurado para uma IA remota.
+    """
+    llm = get_local_llm_client()
+    if not llm.is_available():
+        raise HTTPException(
+            status_code=503,
+            detail="Organizar com IA usa a IA local para o extrato não sair do computador. Abra o Ollama e tente de novo.",
+        )
+    try:
+        return personal_agent().categorizer.categorize_others_with_llm(llm)
+    except LLMError as e:
+        raise HTTPException(status_code=502, detail=f"A IA falhou: {e}")
 
 
 @router.put("/categories/{category_id}/budget")

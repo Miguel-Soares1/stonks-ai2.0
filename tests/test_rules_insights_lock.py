@@ -59,7 +59,7 @@ class TestCategorizer:
 
         # A regra vence a palavra-chave nas próximas
         assert agent.add_transaction("CPFL PAULISTA FATURA 11", 220)["category_name"] == "Outros"
-        assert Categorizer.list_rules() == [{"merchant": "CPFL PAULISTA FATURA", "category": "Outros"}]
+        assert Categorizer.list_rules() == [{"merchant": "CPFL PAULISTA FATURA", "category": "Outros", "source": "user"}]
 
     def test_unchanged_category_does_not_learn(self, agent):  # noqa: F811
         tx = agent.add_transaction("NETFLIX", 40)
@@ -81,6 +81,58 @@ class TestCategorizer:
         agent.update_transaction(tx["id"], category_name="Lazer")
         assert Categorizer.delete_rule("ZE")
         assert Categorizer.list_rules() == []
+
+
+class FakeLLM:
+    """Responde pela descrição que aparece no prompt e conta as chamadas."""
+
+    def __init__(self, answers):
+        self.answers = answers
+        self.prompts = []
+
+    def generate(self, prompt, system_prompt=None):
+        self.prompts.append(prompt)
+        return next((cat for desc, cat in self.answers.items() if desc in prompt), "Outros")
+
+
+class TestAICategorization:
+    def test_one_call_per_merchant_and_rule_applies_next_time(self, agent):  # noqa: F811
+        agent.add_transaction("PANIFICADORA BELLA 01", 12)
+        agent.add_transaction("PANIFICADORA BELLA 02", 15)
+        agent.add_transaction("ZE DO CAFE", 8)
+        c = agent.categorizer
+        assert c.pending_for_llm() == {"merchants": 2, "transactions": 3}
+
+        llm = FakeLLM({"PANIFICADORA": "Alimentação", "ZE DO CAFE": "Outros"})
+        r = c.categorize_others_with_llm(llm)
+        assert r == {"asked": 2, "categorized": 1, "transactions": 2, "remaining": 0}
+        assert len(llm.prompts) == 2
+        assert {t["category_name"] for t in agent.list_transactions(limit=10) if "BELLA" in t["description"]} == {"Alimentação"}
+
+        # Nada pendente: "Outros" respondido pela IA também não é perguntado de novo
+        assert c.pending_for_llm()["merchants"] == 0
+        # A próxima do mesmo estabelecimento já entra na categoria sugerida
+        assert agent.add_transaction("PANIFICADORA BELLA 03", 9)["category_name"] == "Alimentação"
+        assert Categorizer.list_rules() == [{"merchant": "PANIFICADORA BELLA", "category": "Alimentação", "source": "ai"}]
+
+    def test_user_correction_beats_ai_rule(self, agent):  # noqa: F811
+        tx = agent.add_transaction("PANIFICADORA BELLA 01", 12)
+        agent.categorizer.categorize_others_with_llm(FakeLLM({"PANIFICADORA": "Lazer"}))
+        agent.update_transaction(tx["id"], category_name="Alimentação")
+        assert agent.add_transaction("PANIFICADORA BELLA 02", 9)["category_name"] == "Alimentação"
+        assert [r["source"] for r in Categorizer.list_rules()] == ["user"]
+
+    def test_expense_never_goes_to_income_category(self, agent):  # noqa: F811
+        agent.add_transaction("ACME HOLDINGS", 50)
+        llm = FakeLLM({"ACME": "Salário"})
+        assert agent.categorizer.categorize_others_with_llm(llm)["categorized"] == 0
+        assert "Salário" not in llm.prompts[0]
+
+    def test_batches(self, agent):  # noqa: F811
+        for name in ["ALFA", "BETA", "GAMA"]:
+            agent.add_transaction(f"LOJA {name} XPTO", 10)
+        r = agent.categorizer.categorize_others_with_llm(FakeLLM({}), max_merchants=2)
+        assert (r["asked"], r["remaining"]) == (2, 1)
 
 
 # ── Insights ────────────────────────────────────────────────────────────

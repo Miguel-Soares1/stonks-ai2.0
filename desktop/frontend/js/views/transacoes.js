@@ -30,6 +30,7 @@ export async function render(root) {
       </div></div>
       <label class="field"><span>Conta</span><select name="account_id"><option value="">Todas</option></select></label>
     </div>
+    <div id="ai-sort"></div>
     <article class="panel"><div id="tx-list"><p class="empty">Carregando…</p></div></article>`;
 
   [lookups.categories, lookups.accounts] = await Promise.all([
@@ -68,6 +69,7 @@ async function load(root, reset) {
     return;
   }
   loaded = loaded.concat(page);
+  if (reset) loadAiSort(root);
   if (!loaded.length) {
     el.innerHTML = `<p class="empty">Nenhuma transação neste filtro. Importe um extrato ou adicione uma transação.</p>`;
     return;
@@ -137,6 +139,42 @@ async function editTransaction(root, tx) {
       : "Transação adicionada.");
     load(root, true);
   }
+}
+
+// Estabelecimentos parados em "Outros": a IA sugere a categoria, um por vez
+async function loadAiSort(root) {
+  const el = $("#ai-sort", root);
+  const p = await api("/api/categorize-ai").catch(() => null);
+  if (!p || !p.merchants) { el.innerHTML = ""; return; }
+  const n = (k, one, many) => `${k} ${k === 1 ? one : many}`;
+  el.innerHTML = `
+    <article class="insight ai-sort">
+      <span class="insight-label">${icon("sparkle")} Organizar com IA</span>
+      <p>${n(p.transactions, "transação", "transações")} de ${n(p.merchants, "estabelecimento", "estabelecimentos")} ${p.transactions === 1 ? "está" : "estão"} em Outros.
+        A IA sugere a categoria de cada estabelecimento e as próximas transações já entram nela. As sugestões aparecem em Orçamento, onde dá para apagar.</p>
+      <button class="btn" type="button">${icon("sparkle")}<span>Organizar com IA</span></button>
+    </article>`;
+  const btn = $("button", el);
+  btn.addEventListener("click", async () => {
+    btn.disabled = true;
+    const label = btn.lastElementChild;
+    const total = p.merchants;
+    let done = 0, moved = 0, txs = 0;
+    try {
+      for (;;) {
+        label.textContent = `Organizando… ${done} de ${total}`;
+        const r = await api("/api/categorize-ai", { method: "POST" });
+        done += r.asked; moved += r.categorized; txs += r.transactions;
+        if (!r.remaining || !r.asked) break;
+      }
+      toast(moved
+        ? `A IA organizou ${n(moved, "estabelecimento", "estabelecimentos")} (${n(txs, "transação", "transações")}).`
+        : "A IA não achou categoria melhor que Outros para esses estabelecimentos.");
+    } catch (e) {
+      toast(e.message, "error");
+    }
+    load(root, true);
+  });
 }
 
 // Usada aqui e pelo arrastar-e-soltar global (main.js)

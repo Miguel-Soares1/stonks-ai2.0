@@ -84,7 +84,7 @@ Mantenha `AppVersion` do `.iss` igual à versão do `pyproject.toml`.
 | Ocultar valores | O botão de olho no topo troca todos os valores pessoais por `R$ ••••`, inclusive nas respostas da IA. |
 | Chave da IA no cofre | A chave de uma IA na nuvem fica no Gerenciador de Credenciais do Windows, não no `config.yaml` (que guarda só o marcador `@keyring`). Chaves salvas em texto puro por versões antigas são movidas ao abrir o app. |
 | Backup | Cópia automática semanal (guarda as 8 últimas) em `backups/` dentro da pasta de dados, mais backup manual e restauração em Ajustes. Restaurar salva antes uma cópia do estado atual. |
-| Extrato fica local | A categorização roda no próprio app (regras aprendidas e palavras-chave), sem enviar o extrato a nenhuma IA, mesmo com o chat configurado para uma IA na nuvem. |
+| Extrato fica local | A categorização roda no próprio app (regras aprendidas e palavras-chave). O botão "Organizar com IA" usa sempre a IA local (Ollama), mesmo com o chat configurado para uma IA na nuvem; sem o Ollama aberto, ele avisa e não faz nada. |
 | Importação | Só CSV, Excel e PDF, até 20 MB, processados numa pasta temporária apagada em seguida. |
 
 Rodando a API à mão (`uvicorn desktop.api:app`), não há token: use só para desenvolvimento. Para testar com token, defina `STONKS_API_TOKEN` e abra `http://127.0.0.1:8765/?t=<token>`.
@@ -147,6 +147,4 @@ desktop/
 ## Próximos passos
 
 1. Assinar o executável e o instalador (reduz alertas do antivírus e do SmartScreen).
-2. Levar os testes ponta a ponta (Playwright) para dentro do repositório e rodá-los no CI. O painel flutuante do chat ainda não foi testado com clique.
-3. Usar a IA local só para estabelecimentos sem regra de categoria, com cache por estabelecimento (ADR 020).
-4. Windows Hello no lugar do PIN.
+2. Windows Hello no lugar do PIN.

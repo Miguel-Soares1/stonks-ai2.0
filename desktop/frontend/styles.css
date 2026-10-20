@@ -301,6 +301,7 @@ a.kpi:hover { border-color: var(--ink-3); }
 .insight h3 em { font-style: normal; color: var(--brand); }
 .insight p { color: var(--ink-2); font-size: 14.5px; max-width: 60ch; }
 .insight .btn { margin-top: 4px; }
+#ai-sort:empty { display: none; }
 
 .pace { max-width: 720px; }
 .pace-track { position: relative; height: 12px; border-radius: 6px; background: var(--track); }

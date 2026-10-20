@@ -69,7 +69,7 @@ async function load(root) {
       ${without.length ? `<ul class="budget-list">${without.map(row).join("")}</ul>` : `<p class="empty">Todas as categorias têm limite.</p>`}
     </article>
     <article class="panel"><h2>Regras aprendidas</h2>
-      <p class="muted small">Quando você corrige a categoria de uma transação, o estabelecimento passa a ir sempre para a categoria escolhida.</p>
+      <p class="muted small">Quando você corrige a categoria de uma transação, o estabelecimento passa a ir sempre para a categoria escolhida. Sugestões da IA aparecem marcadas e perdem para as suas correções.</p>
       <div id="rules"><p class="empty">Carregando…</p></div>
     </article>`;
   loadRules(root);
@@ -100,9 +100,9 @@ async function loadRules(root) {
     return;
   }
   el.innerHTML = `<table class="table">
-    <thead><tr><th>Estabelecimento</th><th>Vai para</th><th class="actions"><span class="sr-only">Ações</span></th></tr></thead>
+    <thead><tr><th>Estabelecimento</th><th>Vai para</th><th>Origem</th><th class="actions"><span class="sr-only">Ações</span></th></tr></thead>
     <tbody>${rules.map((r) => `<tr data-merchant="${esc(r.merchant)}">
-      <td>${esc(r.merchant)}</td><td>${esc(r.category)}</td>
+      <td>${esc(r.merchant)}</td><td>${esc(r.category)}</td><td class="muted">${r.source === "ai" ? "Sugerida pela IA" : "Sua correção"}</td>
       <td class="actions"><button class="icon-btn" type="button" aria-label="Apagar regra de ${esc(r.merchant)}">${icon("trash")}</button></td>
     </tr>`).join("")}</tbody></table>`;
   el.querySelectorAll("tr[data-merchant] button").forEach((b) => b.addEventListener("click", async () => {

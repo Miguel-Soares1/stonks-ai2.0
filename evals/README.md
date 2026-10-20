@@ -63,6 +63,7 @@ O que os números dizem:
 - **qwen2.5:1.5b** quase empata no geral usando **55% menos memória**, e é melhor nas tarefas em que os dados vêm no prompt (resumo do mês e análise de ativo). É bom candidato para essas tarefas.
 - Em **perguntas gerais** os modelos pequenos inventam fatos. Exemplos reais do relatório: "IPCA é calculado pela Anvisa", "FII é Fundo de Investimento na Estrangeira", "P/L significa Lucro ou Perda". Para o chat, a saída é buscar a resposta numa base de conhecimento local (RAG), não confiar no que o modelo "sabe".
 - **Categorização** fica em 62% em todos. Um classificador simples, treinado nas reclassificações do usuário, tende a superar qualquer LLM pequeno nessa tarefa.
+- **Atualização (20/10/2026, prompt com dicas por categoria, 31 casos de categorização):** llama3.2:3b **84%**, qwen2.5:3b 81%, qwen2.5:1.5b 77%, todos com ~0,4 s por caso. O llama3.2:3b continua o melhor para categorizar, e é o modelo usado pelo botão "Organizar com IA".
 - **llama3.2:1b** não serve para o app.
 
 ## Como usar o resultado

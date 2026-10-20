@@ -645,9 +645,10 @@ A categorização tinha três problemas: palavras-chave casavam com pedaços de 
 Um único `Categorizer` para importação, transação manual e edição, nesta ordem:
 1. **Regra aprendida:** ao corrigir a categoria de uma transação, o estabelecimento (`merchant_key`: "COMPRA CARTAO PANVEL FARMACIAS LJ 33" vira "PANVEL FARMACIAS") passa a ir sempre para a categoria escolhida. Transações do mesmo estabelecimento que estavam na mesma categoria antiga são corrigidas junto. As regras ficam em `user_preferences` (`cat_rule:<estabelecimento>`) e podem ser apagadas em Orçamento.
 2. **Palavra-chave como palavra inteira**, sem acento e aceitando plural, ganhando a mais específica ("AMAZON PRIME" vence "POSTO").
-3. **"Outros".**
+3. **Regra sugerida pela IA** (`cat_ai:<estabelecimento>`), ver abaixo.
+4. **"Outros".**
 
-A IA continua fora da importação.
+A IA continua fora da importação. Quando há transações em "Outros", a tela Transações mostra **"Organizar com IA"**: a IA local é chamada **uma vez por estabelecimento** (não por transação), em lotes de 10, os mais frequentes primeiro. A resposta vira regra da IA, as transações daquele estabelecimento em "Outros" são movidas e as próximas já entram na categoria. Respostas "Outros" também são guardadas, para não perguntar de novo. Despesas nunca vão para categorias de receita (`INCOME_CATEGORIES`). As regras da IA aparecem em Orçamento marcadas como "Sugerida pela IA" e perdem para qualquer correção do usuário.
 
 ### Alternativas Consideradas
 | Alternativa | Prós | Contras |
@@ -659,7 +660,9 @@ A IA continua fora da importação.
 ### Consequências
 - ✅ Corrigir uma vez resolve todas as transações daquele estabelecimento, inclusive nas próximas importações
 - ✅ Cache compartilhado: uma regra aprendida vale na próxima importação sem reiniciar
-- ❌ A IA ainda não ajuda com estabelecimentos novos. Próximo passo possível: chamar a IA só para estabelecimentos sem regra, com cache por estabelecimento
+- ✅ Estabelecimentos novos podem ser organizados pela IA sem travar a importação: 12 estabelecimentos levaram de 5 a 10 s com o llama3.2:3b
+- ✅ A IA de categorização é sempre a local (`get_local_llm_client`): o extrato não vai para a nuvem
+- ❌ Modelos pequenos erram cerca de 1 em 6 (84% na avaliação). Por isso a IA sugere em vez de decidir sem mostrar: a origem fica visível e uma correção do usuário vence
 
 ---
 

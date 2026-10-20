@@ -70,6 +70,32 @@ def test_budget_counts_more_than_ten_categories(client):
     assert outros["spent"] == 1
 
 
+def test_categorize_ai_uses_local_llm(client, monkeypatch):
+    import desktop.routes.finance as finance
+
+    class LocalLLM:
+        available = True
+
+        def is_available(self):
+            return self.available
+
+        def generate(self, prompt, system_prompt=None):
+            return "Alimentação"
+
+    local = LocalLLM()
+    monkeypatch.setattr(finance, "get_local_llm_client", lambda: local)
+    client.post("/api/transactions", json={"description": "PANIFICADORA BELLA", "amount": 12})
+    assert client.get("/api/categorize-ai").json() == {"merchants": 1, "transactions": 1}
+
+    local.available = False
+    assert client.post("/api/categorize-ai").status_code == 503
+
+    local.available = True
+    r = client.post("/api/categorize-ai").json()
+    assert (r["categorized"], r["remaining"]) == (1, 0)
+    assert client.get("/api/transactions").json()[0]["category_name"] == "Alimentação"
+
+
 def test_invalid_frequency_is_rejected(client):
     r = client.post("/api/transactions", json={"description": "X", "amount": 1, "recurring_frequency": "daily"})
     assert r.status_code == 422
