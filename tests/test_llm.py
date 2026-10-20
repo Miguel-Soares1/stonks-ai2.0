@@ -21,6 +21,9 @@ class TestOllamaClient:
             max_tokens=2048,
             timeout=30,
         )
+        # A pré-checagem TCP iria à porta 11434 de verdade: passaria só onde há um
+        # Ollama rodando. Os testes simulam a biblioteca, então simulam a porta aberta.
+        self.client._test_tcp_connect = lambda: True
 
     # ── Helpers ──────────────────────────────────────────────
 
@@ -57,6 +60,13 @@ class TestOllamaClient:
 
         self.client._check_ollama()
         assert self.client._available is True
+
+    def test_ollama_port_closed(self):
+        """E020: nada escutando na porta do Ollama."""
+        self.client._test_tcp_connect = lambda: False
+        with pytest.raises(LLMError) as exc:
+            self.client._check_ollama()
+        assert "LLM-001" in str(exc.value)
 
     @patch("ollama.Client")
     def test_ollama_not_running(self, mock_client_cls):

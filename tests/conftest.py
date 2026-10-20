@@ -1,10 +1,17 @@
 """Configuração comum dos testes."""
 
-import pytest
+import os
+import tempfile
 
-from stonks_ai import backup
-from stonks_ai.collectors.finance import categorizer
-from stonks_ai.database import Database, db
+# Antes de importar o app: config.yaml, banco e backups dos testes ficam numa pasta
+# temporária, nunca em data/ (onde estão os dados reais de quem roda pelo código-fonte).
+os.environ["STONKS_DATA_DIR"] = tempfile.mkdtemp(prefix="stonks-tests-")
+
+import pytest  # noqa: E402
+
+from stonks_ai import backup  # noqa: E402
+from stonks_ai.collectors.finance import categorizer  # noqa: E402
+from stonks_ai.database import Database, db  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
