@@ -18,7 +18,7 @@ StonksAI.exe
 | Mercado | Ativos | Cotação, histórico (1M a 5A), fundamentos com explicação de cada indicador e análise pela IA. Abre pela busca **Ctrl K** |
 | | Watchlist | Ativos acompanhados, preço-alvo e distância até ele |
 | | Comparar | De 2 a 5 ativos: desempenho em base 100, indicadores lado a lado e comparação pela IA |
-| Minhas finanças | Transações | Filtros, adicionar, editar e excluir. Importar extrato pelo botão ou **arrastando o arquivo para a janela** |
+| Minhas finanças | Transações | Filtros, adicionar, editar e excluir. Importar extrato pelo botão ou **arrastando o arquivo para a janela**. Transações recorrentes (semanal, quinzenal, mensal, anual) são lançadas sozinhas quando a data chega |
 | | Orçamento | Limite mensal por categoria e quanto já foi usado (substitui a aba Categorias) |
 | | Contas | Contas e cartões com saldo |
 | | Metas | Criar, editar, adicionar valor e acompanhar prazo |
@@ -80,6 +80,8 @@ Mantenha `AppVersion` do `.iss` igual à versão do `pyproject.toml`.
 | Cabeçalhos | Content-Security-Policy restrita (só scripts do próprio app, nada externo), `nosniff`, sem `Referer`, sem cache. |
 | Janela em modo privado | A WebView não grava cache, cookies nem histórico das páginas em disco. |
 | Respostas da IA | O texto é escapado antes de virar HTML; uma resposta maliciosa não consegue injetar scripts. |
+| Chave da IA no cofre | A chave de uma IA na nuvem fica no Gerenciador de Credenciais do Windows, não no `config.yaml` (que guarda só o marcador `@keyring`). Chaves salvas em texto puro por versões antigas são movidas ao abrir o app. |
+| Backup | Cópia automática semanal (guarda as 8 últimas) em `backups/` dentro da pasta de dados, mais backup manual e restauração em Ajustes. Restaurar salva antes uma cópia do estado atual. |
 | Extrato fica local | A categorização de transações sempre usa o Ollama local, mesmo com o chat configurado para uma IA na nuvem. |
 | Importação | Só CSV, Excel e PDF, até 20 MB, processados numa pasta temporária apagada em seguida. |
 
@@ -133,6 +135,8 @@ desktop/
 | `GET /api/alerts`, `POST /api/alerts/check`, `POST /api/alerts/{id}/dismiss` | Alertas |
 | `POST /api/chat` | Conversa com a IA (streaming) |
 | `GET/PUT /api/settings`, `GET /api/settings/ollama-models` | Ajustes |
+| `GET/POST /api/backups`, `POST /api/backups/{nome}/restore` | Listar, criar e restaurar backups |
+| `POST /api/backups/restore-file`, `POST /api/backups/open-folder` | Restaurar de um arquivo `.db`; abrir a pasta no Explorer |
 
 ## Próximos passos
 

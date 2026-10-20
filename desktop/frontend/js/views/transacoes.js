@@ -3,6 +3,9 @@
 import { api, brl, confirmDialog, esc, formDialog, fullDate, icon, isoDate, toast, todayIso, $ } from "../core.js";
 
 const PAGE = 50;
+// Recorrentes: as próximas são criadas sozinhas quando a data chega
+const FREQUENCIES = [["", "Não repete"], ["weekly", "Toda semana"], ["biweekly", "A cada 2 semanas"], ["monthly", "Todo mês"], ["yearly", "Todo ano"]];
+const FREQ_LABEL = Object.fromEntries(FREQUENCIES);
 const filters = { days: "30", type: "", account_id: "" };
 let lookups = { categories: [], accounts: [] };
 
@@ -74,7 +77,7 @@ async function load(root, reset) {
     <thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th class="num">Valor</th><th class="actions"><span class="sr-only">Ações</span></th></tr></thead>
     <tbody>${loaded.map((t) => `<tr data-id="${t.id}">
       <td class="nowrap">${fullDate(t.date)}</td>
-      <td>${esc(t.description)}${t.account_id && accName[t.account_id] ? `<span class="ticker-name"> ${esc(accName[t.account_id])}</span>` : ""}</td>
+      <td>${esc(t.description)}${t.is_recurring ? ` <span class="repeat-badge" title="${esc(FREQ_LABEL[t.recurring_frequency] || "Recorrente")}">${icon("repeat", "Recorrente")}</span>` : ""}${t.account_id && accName[t.account_id] ? `<span class="ticker-name"> ${esc(accName[t.account_id])}</span>` : ""}</td>
       <td>${esc(t.category_name || "Sem categoria")}</td>
       <td class="num ${t.type === "income" ? "amount-in" : ""}">${t.type === "income" ? "+" : "−"}${brl(t.amount)}</td>
       <td class="actions">
@@ -86,7 +89,8 @@ async function load(root, reset) {
   el.querySelectorAll("button[data-act]").forEach((b) => b.addEventListener("click", async () => {
     const tx = loaded.find((t) => String(t.id) === b.closest("tr").dataset.id);
     if (b.dataset.act === "edit") return editTransaction(root, tx);
-    if (!await confirmDialog({ title: "Excluir transação?", message: `"${tx.description}" de ${brl(tx.amount)} será apagada.`, confirmLabel: "Excluir" })) return;
+    const series = tx.is_recurring ? " As próximas da série continuam sendo criadas; para parar, edite e escolha \"Não repete\"." : "";
+    if (!await confirmDialog({ title: "Excluir transação?", message: `"${tx.description}" de ${brl(tx.amount)} será apagada.${series}`, confirmLabel: "Excluir" })) return;
     try {
       await api(`/api/transactions/${tx.id}`, { method: "DELETE" });
       toast("Transação excluída.");
@@ -113,10 +117,13 @@ async function editTransaction(root, tx) {
         options: [["", editing ? "Sem categoria" : "Detectar automaticamente"], ...lookups.categories.map((c) => [c.name, c.name])] },
       ...(editing ? [] : [{ name: "account_id", label: "Conta", type: "select", value: "",
         options: [["", "Nenhuma"], ...lookups.accounts.map((a) => [a.id, a.name])] }]),
+      { name: "recurring_frequency", label: editing && tx.is_recurring ? "Repetir (vale para toda a série)" : "Repetir",
+        type: "select", value: tx?.is_recurring ? tx.recurring_frequency : "", options: FREQUENCIES },
       { name: "notes", label: "Observações", type: "textarea", value: tx?.notes || "" },
     ],
     onSubmit: (v) => {
-      const body = { ...v, amount: Number(v.amount), account_id: v.account_id ? Number(v.account_id) : null };
+      const body = { ...v, amount: Number(v.amount), account_id: v.account_id ? Number(v.account_id) : null,
+        recurring_frequency: v.recurring_frequency || null };
       return editing
         ? api(`/api/transactions/${tx.id}`, { method: "PUT", body })
         : api("/api/transactions", { method: "POST", body });

@@ -10,6 +10,7 @@ import os
 from typing import Any, Dict, List, Optional
 
 from stonks_ai.config import Config
+from stonks_ai.credentials import resolve_api_key
 from stonks_ai.llm.base import BaseLLMProvider, LLMError
 from stonks_ai.llm.ollama_provider import OllamaProvider
 from stonks_ai.llm.deepseek_provider import DeepSeekProvider
@@ -90,9 +91,9 @@ def create_llm_client(config: Optional[Config] = None) -> BaseLLMProvider:
     max_tokens = cfg.get("llm", "max_tokens", default=2048)
     timeout = cfg.get("llm", "timeout_seconds", default=120)
 
-    # Resolve API key (suporta env vars)
+    # Resolve API key (cofre do sistema ou env vars)
     raw_api_key = cfg.get("llm", "api_key", default="")
-    api_key = _resolve_env_var(raw_api_key)
+    api_key = _resolve_env_var(resolve_api_key(raw_api_key))
 
     # Resolve base_url
     raw_base_url = cfg.get("llm", "base_url", default="")

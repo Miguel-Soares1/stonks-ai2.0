@@ -45,6 +45,7 @@ dependencies = [
     "pdfplumber>=0.10.0",
     "streamlit>=1.57",
     "plotly>=6.0",
+    "keyring>=24",
 ]
 
 [project.scripts]

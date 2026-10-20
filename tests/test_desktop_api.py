@@ -1,0 +1,53 @@
+"""Testes das rotas novas da API local do app desktop (recorrentes e backup)."""
+
+from datetime import date, timedelta
+
+import pytest
+
+pytest.importorskip("fastapi")
+from fastapi.testclient import TestClient  # noqa: E402
+
+from tests.test_desktop_features import temp_db  # noqa: E402,F401 — fixture reaproveitada
+
+
+@pytest.fixture
+def client(temp_db, monkeypatch):  # noqa: F811
+    import desktop.api as api
+
+    # Não mexe no config.yaml real durante os testes
+    monkeypatch.setattr(api, "migrate_plaintext_key", lambda cfg: False)
+    with TestClient(api.app, base_url="http://127.0.0.1") as c:
+        yield c
+
+
+def test_recurring_transaction_and_dashboard(client):
+    start = (date.today() - timedelta(weeks=2)).isoformat()
+    r = client.post("/api/transactions", json={
+        "description": "Aluguel", "amount": 1500, "date": start, "recurring_frequency": "weekly",
+    })
+    assert r.status_code == 201
+    assert r.json()["is_recurring"] is True
+
+    rows = client.get("/api/transactions?days=0").json()
+    assert sum(1 for t in rows if t["description"] == "Aluguel") == 3
+
+    upcoming = client.get("/api/dashboard").json()["upcoming_recurring"]
+    assert [u["description"] for u in upcoming] == ["Aluguel"]
+
+
+def test_invalid_frequency_is_rejected(client):
+    r = client.post("/api/transactions", json={"description": "X", "amount": 1, "recurring_frequency": "daily"})
+    assert r.status_code == 422
+
+
+def test_backup_routes(client):
+    created = client.post("/api/backups")
+    assert created.status_code == 201
+    name = created.json()["name"]
+    assert name in [b["name"] for b in client.get("/api/backups").json()["items"]]
+
+    assert client.post(f"/api/backups/{name}/restore").status_code == 200
+    # Só nomes de backup válidos; "../" nem chega a casar com a rota
+    assert client.post("/api/backups/config.yaml/restore").status_code == 422
+    assert client.post("/api/backups/..%2Fstonks_ai.db/restore").status_code in (404, 405, 422)
+    assert client.post("/api/backups/restore-file", content=b"lixo").status_code == 422

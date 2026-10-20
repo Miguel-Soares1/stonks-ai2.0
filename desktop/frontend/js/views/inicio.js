@@ -1,6 +1,6 @@
 // Início: o mês contado em uma frase, ritmo de gastos, gráficos, metas e watchlist.
 
-import { aiPanel, api, brl, changeHtml, esc, icon, money, monthName, monthTitle, moneyCompact, pct, $ } from "../core.js";
+import { aiPanel, api, brl, changeHtml, esc, icon, money, monthName, monthTitle, moneyCompact, pct, shortDate, $ } from "../core.js";
 import { groupedBars, lineChart } from "../charts.js";
 
 const today = new Date();
@@ -24,6 +24,7 @@ export async function render(root) {
       <article class="panel"><h2>Para onde foi o dinheiro</h2><div id="categories"></div></article>
       <article class="panel panel-wide"><h2>Receitas e despesas nos últimos 6 meses</h2><div class="chart chart-bars" id="months-chart"></div></article>
       <article class="panel"><h2>Metas</h2><div id="goals"></div></article>
+      <article class="panel panel-full" id="upcoming-panel" hidden><div class="panel-head"><h2>Recorrentes no próximo mês</h2><a class="link" href="#transacoes">Ver transações</a></div><div id="upcoming"></div></article>
       <article class="panel panel-full"><div class="panel-head"><h2>Watchlist</h2><a class="link" href="#watchlist">Gerenciar</a></div><div id="watchlist"></div></article>
     </div>`;
 
@@ -56,6 +57,7 @@ async function loadMonth(root) {
         label: "Saldo acumulado nos últimos 90 dias", emptyMessage: "Sem movimentações nos últimos 90 dias." });
     renderCategories(root, d.summary.top_categories);
     renderGoals(root, d.goals);
+    renderUpcoming(root, d.upcoming_recurring);
     const monthAi = $("#month-ai", root);
     if (d.summary.transaction_count) {
       aiPanel(monthAi, { label: "Resumir o mês com IA",
@@ -161,6 +163,23 @@ function renderGoals(root, goals) {
     return;
   }
   el.innerHTML = `<ul class="goal-list">${goals.slice(0, 4).map((g) => `<li>${goalItem(g)}</li>`).join("")}</ul>`;
+}
+
+// Contas fixas e receitas que se repetem: o que ainda vai entrar e sair
+function renderUpcoming(root, items) {
+  const panel = $("#upcoming-panel", root);
+  panel.hidden = !items || !items.length;
+  if (panel.hidden) return;
+  const out = items.filter((i) => i.type === "expense").reduce((s, i) => s + i.amount, 0);
+  const inc = items.filter((i) => i.type === "income").reduce((s, i) => s + i.amount, 0);
+  $("#upcoming", root).innerHTML = `
+    <p class="muted small">Previsto: ${inc ? `entram <strong>${brl(inc)}</strong> e ` : ""}saem <strong>${brl(out)}</strong>.</p>
+    <ul class="upcoming-list">${items.slice(0, 8).map((i) => `
+      <li>
+        <span class="upcoming-date">${shortDate(i.date)}</span>
+        <span>${esc(i.description)}<span class="upcoming-meta">${esc(i.category_name)} · ${esc(i.frequency_label)}</span></span>
+        <span class="num ${i.type === "income" ? "amount-in" : ""}">${i.type === "income" ? "+" : "−"}${brl(i.amount)}</span>
+      </li>`).join("")}</ul>`;
 }
 
 async function loadMonths(root) {

@@ -25,6 +25,8 @@ a = Analysis(
         "uvicorn.protocols.http.auto",
         "uvicorn.protocols.websockets.auto",
         "uvicorn.lifespan.on",
+        # keyring escolhe o backend em tempo de execução (cofre do Windows)
+        "keyring.backends.Windows",
     ],
     excludes=[
         # Só a interface Streamlit/CLI usa estes; o app desktop não precisa

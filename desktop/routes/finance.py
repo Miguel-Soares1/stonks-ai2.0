@@ -12,11 +12,13 @@ from pydantic import BaseModel, Field
 
 from desktop.state import personal_agent
 from desktop.streaming import require_llm, stream_text
+from stonks_ai.utils import recurrence
 from stonks_ai.utils.finance_utils import get_month_summary, get_multi_month_summary
 
 router = APIRouter(prefix="/api")
 
 TxType = Literal["expense", "income"]
+Frequency = Literal["weekly", "biweekly", "monthly", "yearly"]
 IMPORT_SUFFIXES = {".csv", ".xlsx", ".xls", ".pdf"}
 MAX_IMPORT_BYTES = 20 * 1024 * 1024
 
@@ -36,6 +38,8 @@ def dashboard(year: Optional[int] = None, month: Optional[int] = None) -> Dict[s
     if not 1 <= month <= 12:
         raise HTTPException(status_code=422, detail="Mês inválido.")
 
+    # O app pode ficar aberto de um dia para o outro: cria as recorrentes que venceram
+    recurrence.generate_due()
     data = personal_agent().get_dashboard(year, month)
     prev_year, prev_month = (year - 1, 12) if month == 1 else (year, month - 1)
     days_in_month = calendar.monthrange(year, month)[1]
@@ -55,6 +59,8 @@ def dashboard(year: Optional[int] = None, month: Optional[int] = None) -> Dict[s
         "balance_history": data["balance_history"],
         "goals": data["active_goals"],
         "alerts": data["active_alerts"],
+        # 31 dias: uma conta mensal sempre aparece, mesmo no dia em que acabou de ser lançada
+        "upcoming_recurring": recurrence.upcoming(days=31),
     }
 
 
@@ -86,6 +92,8 @@ class TransactionIn(BaseModel):
     date: Optional[str] = None  # AAAA-MM-DD
     account_id: Optional[int] = None
     notes: Optional[str] = None
+    # None = não repete. Na edição, vale para a série inteira.
+    recurring_frequency: Optional[Frequency] = None
 
 
 @router.get("/transactions")
@@ -109,6 +117,7 @@ def transaction_add(body: TransactionIn) -> Dict[str, Any]:
         description=body.description.strip(), amount=body.amount, date=body.date,
         tx_type=body.type, category_name=body.category_name or None,
         account_id=body.account_id, notes=body.notes or None,
+        recurring_frequency=body.recurring_frequency,
     )
 
 
@@ -118,6 +127,7 @@ def transaction_update(tx_id: int, body: TransactionIn) -> Dict[str, Any]:
         transaction_id=tx_id, description=body.description.strip(), amount=body.amount,
         tx_type=body.type, category_name=body.category_name or None,
         date=body.date, notes=body.notes or None,
+        recurring_frequency=body.recurring_frequency,
     )
     if not updated:
         raise _not_found("Transação")

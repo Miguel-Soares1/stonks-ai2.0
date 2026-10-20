@@ -27,6 +27,7 @@ from stonks_ai.models.account import Account, DEFAULT_ACCOUNTS
 from stonks_ai.models.category import Category, DEFAULT_CATEGORIES
 from stonks_ai.models.financial_goal import FinancialGoal
 from stonks_ai.models.transaction import Transaction
+from stonks_ai.utils import recurrence
 from stonks_ai.utils.finance_utils import (
     check_and_generate_alerts,
     get_balance_history,
@@ -36,6 +37,9 @@ from stonks_ai.utils.finance_utils import (
     get_multi_month_summary,
     save_alerts,
 )
+
+# Distingue "não informado" de None (que em update_transaction quer dizer "parar de repetir")
+_UNSET = object()
 
 
 class PersonalFinanceAgent(BaseAgent):
@@ -151,8 +155,9 @@ class PersonalFinanceAgent(BaseAgent):
         category_name: Optional[str] = None,
         account_id: Optional[int] = None,
         notes: Optional[str] = None,
+        recurring_frequency: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Adiciona uma transação manualmente."""
+        """Adiciona uma transação manualmente. Com recurring_frequency, ela inicia uma série."""
         try:
             # Categoriza automaticamente se não for especificada
             category_id = None
@@ -188,12 +193,19 @@ class PersonalFinanceAgent(BaseAgent):
                 source="manual",
                 notes=notes,
             )
+            if recurring_frequency:
+                transaction.is_recurring = 1
+                transaction.recurring_frequency = recurring_frequency
+                transaction.recurrence_id = recurrence.new_recurrence_id()
 
             with db.session() as session:
                 session.add(transaction)
                 session.flush()
                 result = transaction.to_dict()
 
+            # Uma série iniciada no passado já cria as ocorrências até hoje
+            if recurring_frequency:
+                recurrence.generate_due()
             return result
 
         except (DatabaseError, Exception) as e:
@@ -208,6 +220,7 @@ class PersonalFinanceAgent(BaseAgent):
         category_name: Optional[str] = None,
         date: Optional[str] = None,
         notes: Optional[str] = None,
+        recurring_frequency: Any = _UNSET,
     ) -> Optional[Dict[str, Any]]:
         """Atualiza uma transação existente.
 
@@ -219,6 +232,8 @@ class PersonalFinanceAgent(BaseAgent):
             category_name: Nome da nova categoria (opcional).
             date: Nova data no formato YYYY-MM-DD (opcional).
             notes: Novas observações (opcional).
+            recurring_frequency: Frequência da série; None para de repetir (vale para a
+                série inteira). Omitido, não mexe na recorrência.
 
         Returns:
             Dict com dados atualizados ou None se não encontrada.
@@ -264,9 +279,29 @@ class PersonalFinanceAgent(BaseAgent):
                 if notes is not None:
                     tx.notes = notes
 
+                starts_series = False
+                if recurring_frequency is not _UNSET:
+                    if tx.recurrence_id and recurring_frequency:
+                        recurrence.set_series_frequency(session, tx.recurrence_id, recurring_frequency)
+                    elif tx.recurrence_id:
+                        recurrence.stop_series(session, tx.recurrence_id)
+                    elif recurring_frequency:
+                        tx.recurrence_id = recurrence.new_recurrence_id()
+                        starts_series = True
+                    if recurring_frequency:
+                        tx.is_recurring = 1
+                        tx.recurring_frequency = recurring_frequency
+                    else:
+                        tx.is_recurring = 0
+
                 session.add(tx)
                 session.flush()
-                return tx.to_dict()
+                session.refresh(tx)
+                result = tx.to_dict()
+
+            if starts_series:
+                recurrence.generate_due()
+            return result
 
         except DatabaseError as e:
             raise AgentError(f"Erro ao atualizar transação: {e}")

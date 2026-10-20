@@ -1,14 +1,19 @@
-"""Rotas de ajustes: provider/modelo de IA, bolsa padrão e informações do sistema."""
+"""Rotas de ajustes: provider/modelo de IA, bolsa padrão, backup e informações do sistema."""
 
+import os
+import sys
+import tempfile
+from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional
 
 import httpx
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from desktop.state import financial_agent, reset_agents
-from stonks_ai import __version__
+from stonks_ai import __version__, backup
 from stonks_ai.config import DATA_DIR, config
+from stonks_ai.credentials import store_api_key
 from stonks_ai.database import db
 
 router = APIRouter(prefix="/api")
@@ -82,12 +87,70 @@ def save_settings(body: SettingsIn) -> Dict[str, Any]:
     config.set(body.endpoint.strip(), "llm", "endpoint")
     config.set(body.base_url.strip(), "llm", "base_url")
     if body.api_key is not None:
-        config.set(body.api_key.strip(), "llm", "api_key")
+        # A chave vai para o Gerenciador de Credenciais do Windows; no config fica só um marcador
+        config.set(store_api_key(body.api_key), "llm", "api_key")
     config.set("ollama" if body.fallback_to_ollama else "", "llm", "fallback_provider")
     config.set(body.default_exchange, "stocks", "default_exchange")
     # Os agentes guardam o cliente LLM; recria para valer o novo provider/modelo
     reset_agents()
     return settings()
+
+
+# ── Backup ──────────────────────────────────────────────────────────────
+
+MAX_RESTORE_BYTES = 500 * 1024 * 1024
+
+
+@router.get("/backups")
+def backups() -> Dict[str, Any]:
+    return {"folder": str(backup.BACKUP_DIR), "items": backup.list_backups()}
+
+
+@router.post("/backups", status_code=201)
+def backup_create() -> Dict[str, Any]:
+    try:
+        return backup.create_backup()
+    except backup.BackupError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+
+@router.post("/backups/{name}/restore")
+def backup_restore(name: str) -> Dict[str, Any]:
+    try:
+        result = backup.restore_backup(backup.backup_path(name))
+    except backup.BackupError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    reset_agents()
+    return result
+
+
+@router.post("/backups/restore-file")
+async def backup_restore_file(request: Request) -> Dict[str, Any]:
+    """Restaura a partir de um arquivo .db escolhido pelo usuário (o corpo é o arquivo)."""
+    content = await request.body()
+    if not content:
+        raise HTTPException(status_code=422, detail="O arquivo está vazio.")
+    if len(content) > MAX_RESTORE_BYTES:
+        raise HTTPException(status_code=413, detail="Arquivo maior que 500 MB.")
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "restaurar.db"
+        path.write_bytes(content)
+        try:
+            result = backup.restore_backup(path)
+        except backup.BackupError as e:
+            raise HTTPException(status_code=422, detail=str(e))
+    reset_agents()
+    return result
+
+
+@router.post("/backups/open-folder", status_code=204)
+def backup_open_folder() -> None:
+    """Abre a pasta dos backups no Explorer, para copiar para um pendrive ou nuvem."""
+    backup.BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+    if sys.platform == "win32":
+        os.startfile(backup.BACKUP_DIR)  # noqa: S606 — caminho fixo, não vem do usuário
+    else:
+        raise HTTPException(status_code=501, detail="Disponível só no Windows.")
 
 
 @router.get("/settings/ollama-models")

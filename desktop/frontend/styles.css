@@ -348,6 +348,13 @@ kbd { font: 12px var(--font); padding: 1px 6px; border: 1px solid var(--line); b
 .ticker { font-weight: 600; color: var(--ink); text-decoration: none; }
 a.ticker:hover { color: var(--brand); }
 .ticker-name { color: var(--ink-3); font-size: 13px; }
+.repeat-badge { display: inline-flex; vertical-align: -2px; color: var(--ink-3); }
+.repeat-badge svg { width: 14px; height: 14px; }
+.upcoming-list { list-style: none; margin: 0; padding: 0; }
+.upcoming-list li { display: grid; grid-template-columns: 64px 1fr auto; gap: 12px; align-items: baseline; padding: 8px 0; border-top: 1px solid var(--line); }
+.upcoming-list li:first-child { border-top: 0; }
+.upcoming-date { color: var(--ink-2); font-weight: 600; }
+.upcoming-meta { display: block; color: var(--ink-3); font-size: 13px; }
 .change.up { color: var(--up); }
 .change.down { color: var(--down); }
 .more { display: flex; justify-content: center; padding-top: 14px; }
