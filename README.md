@@ -33,7 +33,6 @@
 | 🎯 **Metas e Orçamento** | Metas com prazo e limite mensal por categoria |
 | 🖥️ **App Desktop (Windows)** | Janela nativa com instalador, chat com IA em streaming, ocultar valores e bloqueio por PIN |
 | 💾 **Backup** | Cópia semanal automática e restauração em um clique |
-| 📊 **Interface Web** | Dashboard Streamlit + Plotly (sendo substituído pelo app desktop) |
 | 📁 **Histórico Persistente** | Todas as consultas salvas em banco SQLite local |
 | 🛡️ **Tratamento Estruturado de Erros** | Matriz de erros com 34 códigos e soluções documentadas |
 
@@ -106,23 +105,6 @@ python -m desktop.app
 - Instalador em português, sem pedir administrador
 
 Detalhes de telas, segurança, build e API em [`desktop/README.md`](desktop/README.md).
-
----
-
-## 🌐 Interface Web
-
-Além da CLI e do app desktop, o Stonks AI tem uma **interface web** construída com **Streamlit** e **Plotly**. Ela está sendo substituída pelo app desktop (ADR 015) e não recebe as funcionalidades novas:
-
-```bash
-streamlit run webapp/app.py
-```
-
-O dashboard web inclui:
-
-- 📊 **Gráficos interativos** de cotações e histórico
-- 🔍 **Análise visual** de múltiplos ativos
-- 💰 **Painel de finanças pessoais** com gráficos de categorização
-- 📱 Layout responsivo para dispositivos móveis
 
 ---
 
@@ -260,8 +242,6 @@ stonks-ai/
 │       ├── finance_utils.py      # Cálculos financeiros
 │       ├── recurrence.py         # Transações recorrentes
 │       └── insights.py           # Insights do mês calculados pelo código
-├── webapp/                       # Interface web
-│   └── app.py                    # Streamlit + Plotly dashboard
 ├── tests/                        # Suíte de testes (pytest)
 │   ├── test_agents.py
 │   ├── test_cli.py
@@ -296,8 +276,6 @@ stonks-ai/
 | [SQLite](https://www.sqlite.org/) | — | Banco de dados local (WAL mode) |
 | [yfinance](https://github.com/ranaroussi/yfinance) | 0.2+ | Dados NYSE/Nasdaq |
 | [Ollama](https://ollama.com/) | — | Inferência LLM local |
-| [Streamlit](https://streamlit.io/) | 1.57+ | Dashboard web |
-| [Plotly](https://plotly.com/python/) | 6.0+ | Gráficos interativos |
 | [FastAPI](https://fastapi.tiangolo.com/) + [Uvicorn](https://www.uvicorn.org/) | 0.110+ / 0.29+ | API local do app desktop |
 | [pywebview](https://pywebview.flowrl.com/) | 5.0+ | Janela nativa (WebView2) |
 | [PyInstaller](https://pyinstaller.org/) + Inno Setup | 6.0+ / 6 | Executável e instalador |
@@ -347,7 +325,7 @@ pytest -v --tb=long
 
 ### ✅ Concluído (v0.1.0)
 - [x] **Multi-Provider LLM** — Ollama (local) + DeepSeek + OpenAI + OpenAI-compatible com fallback automático
-- [x] **WebApp Modular** — Refatorado de 2144 linhas monolíticas para 16 módulos
+- [x] **App desktop** — Substituiu a interface web em Streamlit (removida)
 - [x] **Finanças Pessoais** — Importação CSV/Excel/PDF, categorização, metas, alertas
 - [x] **Watchlist e Comparação** — Gerenciamento de ativos e comparação lado a lado
 - [x] **App Desktop** — Janela nativa para Windows com instalador (ADR 015)

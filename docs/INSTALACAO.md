@@ -150,30 +150,6 @@ pip install -e ".[dev]"
 
 ---
 
-## 🌐 Interface Web (Streamlit)
-
-O Stonks AI inclui uma interface web opcional construída com Streamlit + Plotly.
-
-```bash
-# Instalar dependências (caso não tenha)
-pip install streamlit plotly
-
-# Iniciar o servidor web
-streamlit run webapp/app.py
-```
-
-Acesse em: `http://localhost:8501`
-
-### Funcionalidades do Webapp
-
-- Dashboard financeiro interativo com gráficos Plotly
-- Histórico de ações com gráficos de candlestick
-- Análise de gastos por categoria
-- Gerenciamento de metas financeiras com visualização de progresso
-- Alertas inteligentes
-
----
-
 ## ✅ Verificação
 
 ```bash
@@ -188,7 +164,4 @@ stonks quote PETR4
 
 # Testar finanças pessoais
 stonks finance dashboard
-
-# Testar webapp (se instalado)
-streamlit run webapp/app.py
 ```

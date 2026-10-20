@@ -3,7 +3,7 @@ Guarda a chave da API da IA no cofre do sistema (Gerenciador de Credenciais no W
 
 No config.yaml fica só o marcador KEYRING_MARKER; a chave em si nunca vai para o disco
 em texto puro. Referências a variáveis de ambiente (${NOME}) continuam no config, porque
-não são segredo. Sem cofre disponível (ex.: Linux sem serviço de chaves, Streamlit Cloud),
+não são segredo. Sem cofre disponível (ex.: Linux sem serviço de chaves),
 a chave volta a ser salva no config, como antes.
 """
 

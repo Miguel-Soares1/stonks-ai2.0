@@ -1,6 +1,6 @@
 # Stonks AI Desktop
 
-App nativo para Windows que substitui a interface Streamlit. Todas as telas do app Streamlit foram migradas.
+App nativo para Windows. Substituiu a antiga interface Streamlit, já removida.
 
 ```
 StonksAI.exe
@@ -147,7 +147,6 @@ desktop/
 ## Próximos passos
 
 1. Assinar o executável e o instalador (reduz alertas do antivírus e do SmartScreen).
-2. Remover o Streamlit (`webapp/`) e a dependência `streamlit`. Antes, trocar o link da landing page (`site/`), que aponta para o dashboard Streamlit publicado.
-3. Levar os testes ponta a ponta (Playwright) para dentro do repositório e rodá-los no CI. O painel flutuante do chat ainda não foi testado com clique.
-4. Usar a IA local só para estabelecimentos sem regra de categoria, com cache por estabelecimento (ADR 020).
-5. Windows Hello no lugar do PIN.
+2. Levar os testes ponta a ponta (Playwright) para dentro do repositório e rodá-los no CI. O painel flutuante do chat ainda não foi testado com clique.
+3. Usar a IA local só para estabelecimentos sem regra de categoria, com cache por estabelecimento (ADR 020).
+4. Windows Hello no lugar do PIN.

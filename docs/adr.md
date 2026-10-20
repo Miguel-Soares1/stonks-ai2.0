@@ -495,7 +495,7 @@ webapp/
 
 ## ADR 015: App Desktop (pywebview + FastAPI) no lugar do Streamlit
 
-**Status:** ✅ Aceito — todas as telas migradas para `desktop/`; o Streamlit (`webapp/`) continua disponível até ser removido. A remoção está em aberto: o dashboard publicado pela landing page (`site/`) ainda depende dele.
+**Status:** ✅ Aceito — todas as telas migradas para `desktop/`; o Streamlit (`webapp/`), a landing page e o dashboard público (`site/`) foram removidos em 20/10/2026: a landing descrevia um produto web/pago que não existe mais, e o app é local-first.
 **Data:** 2026-10
 **Tipo:** 🏗️ Refatoração
 
