@@ -3,7 +3,7 @@
 import calendar
 import re
 import tempfile
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional
 
@@ -26,6 +26,14 @@ MAX_IMPORT_BYTES = 20 * 1024 * 1024
 
 def _not_found(what: str) -> HTTPException:
     return HTTPException(status_code=404, detail=f"{what} não encontrada.")
+
+
+def _until_today(year: int, month: int) -> Optional[datetime]:
+    """No mês em andamento, os totais param em hoje: o que está agendado ainda não saiu."""
+    now = datetime.now()
+    if (year, month) != (now.year, now.month):
+        return None
+    return datetime(now.year, now.month, now.day, tzinfo=timezone.utc) + timedelta(days=1)
 
 
 # ── Início ──────────────────────────────────────────────────────────────
@@ -53,9 +61,20 @@ def dashboard(year: Optional[int] = None, month: Optional[int] = None) -> Dict[s
     else:
         day = 0
 
+    summary = data["summary"]
+    until = _until_today(year, month)
+    if until:
+        summary = get_month_summary(year, month, until=until)
+    full = data["summary"]
+
     return {
         "period": {"year": year, "month": month, "days_in_month": days_in_month, "day": day},
-        "summary": data["summary"],
+        "summary": summary,
+        # Lançado com data futura dentro do mês (contas agendadas, recorrentes)
+        "scheduled": {
+            "income": round(full["total_income"] - summary["total_income"], 2),
+            "expense": round(full["total_expense"] - summary["total_expense"], 2),
+        },
         "previous": get_month_summary(prev_year, prev_month),
         "balance_history": data["balance_history"],
         "goals": data["active_goals"],
@@ -78,7 +97,7 @@ def dashboard_summary_ai(year: int, month: int):
     """Resumo do mês escrito pela IA, em streaming."""
     agent = personal_agent()
     require_llm(agent.llm)
-    summary = get_month_summary(year, month)
+    summary = get_month_summary(year, month, until=_until_today(year, month))
     if not summary["transaction_count"]:
         raise HTTPException(status_code=422, detail="Não há transações neste mês para resumir.")
     prompt = agent.build_monthly_summary_prompt(year, month, summary)

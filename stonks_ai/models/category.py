@@ -40,6 +40,9 @@ class Category(Base):
         }
 
 
+# Categorias de receita: não entram no orçamento (a não ser que tenham limite ou gasto)
+INCOME_CATEGORIES = {"Salário"}
+
 # Categorias padrão para inicialização
 DEFAULT_CATEGORIES = [
     {"name": "Alimentação", "icon": "🍕", "keywords": '["IFOOD", "RESTAURANTE", "MCDONALDS", "BURGER", "PIZZA", "ACAI", "PADARIA", "SUPERMERCADO", "MERCADO", "FEIRA", "HORTIFRUTI", "ASSAl", "ST MARTHA", "CARREFOUR"]', "color": "#FF6B35", "sort_order": 1},

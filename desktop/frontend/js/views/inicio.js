@@ -117,9 +117,11 @@ function renderKpis(root, d, isCurrent) {
   const p = d.previous && d.previous.transaction_count ? d.previous : null;
   const prevName = p ? monthName(p.year, p.month) : "";
   // No mês em andamento, comparar com o mês anterior inteiro seria injusto
-  const sub = (cur, prev, upIsGood) => isCurrent
-    ? `<span class="kpi-sub">até hoje, dia ${d.period.day} de ${d.period.days_in_month}</span>`
+  const sub = (cur, prev, upIsGood, scheduled) => isCurrent
+    ? `<span class="kpi-sub">até hoje, dia ${d.period.day} de ${d.period.days_in_month}${
+        scheduled > 0 ? ` · mais ${brl(scheduled)} agendado` : ""}</span>`
     : p ? `${delta(cur, prev, upIsGood)} <span class="kpi-sub">vs. ${esc(prevName)}</span>` : "";
+  const sched = d.scheduled || {};
   $("#kpis", root).innerHTML = `
     <a class="kpi" href="#contas">
       <span class="kpi-label">${icon("bank")} Saldo nas contas</span>
@@ -129,12 +131,12 @@ function renderKpis(root, d, isCurrent) {
     <div class="kpi">
       <span class="kpi-label"><span class="kpi-dot in"></span> Entrou</span>
       <strong class="kpi-value">${brl(s.total_income)}</strong>
-      <span>${sub(s.total_income, p && p.total_income, true)}</span>
+      <span>${sub(s.total_income, p && p.total_income, true, sched.income)}</span>
     </div>
     <div class="kpi">
       <span class="kpi-label"><span class="kpi-dot out"></span> Saiu</span>
       <strong class="kpi-value">${brl(s.total_expense)}</strong>
-      <span>${sub(s.total_expense, p && p.total_expense, false)}</span>
+      <span>${sub(s.total_expense, p && p.total_expense, false, sched.expense)}</span>
     </div>`;
 }
 

@@ -10,16 +10,20 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from stonks_ai.database import db
 from stonks_ai.models.alert import Alert, AlertConfig
-from stonks_ai.models.category import Category
+from stonks_ai.models.category import INCOME_CATEGORIES, Category
 from stonks_ai.models.financial_goal import FinancialGoal
 from stonks_ai.models.transaction import Transaction
 
 
 # ── Dashboard / Resumo ──────────────────────────────────────────────────
 
-def get_month_summary(year: int, month: int) -> Dict[str, Any]:
+def get_month_summary(year: int, month: int, until: Optional[datetime] = None) -> Dict[str, Any]:
     """
     Obtém resumo financeiro de um mês específico.
+
+    Args:
+        until: Limite exclusivo opcional dentro do mês (ex.: amanhã, para não
+               contar transações agendadas no mês em andamento).
 
     Returns:
         Dict com: total_income, total_expense, balance, top_categories,
@@ -30,6 +34,9 @@ def get_month_summary(year: int, month: int) -> Dict[str, Any]:
         end_date = datetime(year + 1, 1, 1, tzinfo=timezone.utc)
     else:
         end_date = datetime(year, month + 1, 1, tzinfo=timezone.utc)
+    days_in_month = (end_date - start_date).days
+    if until is not None:
+        end_date = min(end_date, until)
 
     try:
         with db.session() as session:
@@ -68,7 +75,6 @@ def get_month_summary(year: int, month: int) -> Dict[str, Any]:
         reverse=True,
     )[:10]
 
-    days_in_month = (end_date - start_date).days
     avg_daily_expense = round(total_expense / days_in_month, 2) if days_in_month > 0 else 0
 
     return {
@@ -78,6 +84,7 @@ def get_month_summary(year: int, month: int) -> Dict[str, Any]:
         "transaction_count": len(transactions),
         "avg_daily_expense": avg_daily_expense,
         "top_categories": top_categories,
+        "spending_by_category": {k: round(v, 2) for k, v in category_spending.items()},
         "year": year,
         "month": month,
     }
@@ -358,7 +365,7 @@ def _check_budget_exceeded(configs: Dict) -> List[Alert]:
         return alerts
 
     summary = get_month_summary(now.year, now.month)
-    cat_spending = {c["name"]: c["amount"] for c in summary["top_categories"]}
+    cat_spending = summary.get("spending_by_category", {})  # todas, não só as 10 maiores
 
     for cat in categories:
         spent = cat_spending.get(cat["name"], 0)
@@ -485,7 +492,7 @@ def get_budget_overview(year: int, month: int) -> Dict[str, Any]:
 
     # Gastos do mês atual por categoria
     summary = get_month_summary(year, month)
-    cat_spending = {c["name"]: c["amount"] for c in summary["top_categories"]}
+    cat_spending = summary.get("spending_by_category", {})  # todas, não só as 10 maiores
 
     total_budget = 0
     total_spent = 0
@@ -496,6 +503,8 @@ def get_budget_overview(year: int, month: int) -> Dict[str, Any]:
         if budget is None or budget <= 0:
             # Categoria sem orçamento definido — inclui mas sem limite
             spent = cat_spending.get(cat["name"], 0)
+            if cat["name"] in INCOME_CATEGORIES and not spent:
+                continue
             budget_categories.append({
                 "id": cat["id"],
                 "name": cat["name"],

@@ -35,6 +35,41 @@ def test_recurring_transaction_and_dashboard(client):
     assert [u["description"] for u in upcoming] == ["Aluguel"]
 
 
+def test_dashboard_counts_only_until_today(client):
+    today = date.today()
+    tomorrow = today + timedelta(days=1)
+    if tomorrow.month != today.month:
+        pytest.skip("último dia do mês: não há dia futuro dentro do mês")
+    client.post("/api/transactions", json={"description": "Mercado", "amount": 100, "date": today.isoformat()})
+    client.post("/api/transactions", json={"description": "Academia", "amount": 90, "date": tomorrow.isoformat()})
+
+    d = client.get("/api/dashboard").json()
+    assert d["summary"]["total_expense"] == 100
+    assert d["scheduled"] == {"income": 0, "expense": 90}
+
+
+def test_budget_hides_income_category(client):
+    names = [c["name"] for c in client.get("/api/budget").json()["categories"]]
+    assert "Salário" not in names
+    assert "Alimentação" in names
+
+
+def test_budget_counts_more_than_ten_categories(client):
+    cats = {c["name"]: c["id"] for c in client.get("/api/categories").json()}
+    assert len(cats) > 10
+    today = date.today().isoformat()
+    # A menor categoria fica fora das 10 maiores do resumo; o orçamento ainda precisa vê-la
+    for i, name in enumerate(cats):
+        amount = 1 if name == "Outros" else 100 + i
+        client.post("/api/transactions", json={
+            "description": f"Gasto {i}", "amount": amount, "date": today, "category_name": name,
+        })
+    client.put(f"/api/categories/{cats['Outros']}/budget", json={"limit": 50})
+
+    outros = next(c for c in client.get("/api/budget").json()["categories"] if c["name"] == "Outros")
+    assert outros["spent"] == 1
+
+
 def test_invalid_frequency_is_rejected(client):
     r = client.post("/api/transactions", json={"description": "X", "amount": 1, "recurring_frequency": "daily"})
     assert r.status_code == 422
