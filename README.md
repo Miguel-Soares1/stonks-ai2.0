@@ -329,7 +329,7 @@ Os testes rodam a cada push no GitHub Actions (`.github/workflows/testes.yml`), 
 
 ## 🗺️ Roadmap
 
-### ✅ Concluído (v0.1.0)
+### ✅ Concluído (até v0.2.0)
 - [x] **Multi-Provider LLM** — Ollama (local) + DeepSeek + OpenAI + OpenAI-compatible com fallback automático
 - [x] **App desktop** — Substituiu a interface web em Streamlit (removida)
 - [x] **Finanças Pessoais** — Importação CSV/Excel/PDF, categorização, metas, alertas
@@ -338,21 +338,28 @@ Os testes rodam a cada push no GitHub Actions (`.github/workflows/testes.yml`), 
 - [x] **Orçamento Mensal** — Limites por categoria, com aviso quando o ritmo vai estourar
 - [x] **Recorrentes, backup, PIN e cofre da chave** — ADRs 016 a 018
 - [x] **Categorização que aprende** — Regras por estabelecimento a partir das correções (ADR 020)
+- [x] **IA para estabelecimentos novos** — "Organizar com IA" chama o modelo local uma vez por estabelecimento em "Outros" (ADR 020)
+- [x] **Testes ponta a ponta e CI** — Playwright clicando no app; GitHub Actions no Windows a cada push
 
-### 🔜 Em Breve
-- [ ] **Suporte a Criptomoedas** — Integração com CoinGecko e CoinMarketCap
-- [ ] **Notificações em Tempo Real** — Alertas de preço alvo via desktop/email
-- [ ] **IA para estabelecimentos novos** — Chamar o modelo local só quando não houver regra, com cache
-- [ ] **Windows Hello** — Desbloquear o app com biometria no lugar do PIN
+### 🔜 Próximos (nesta ordem)
+1. [ ] **Carteira de Investimentos** — Compras e vendas, preço médio, posição atual, proventos e rentabilidade contra CDI e Ibovespa; importação do extrato da Área do Investidor da B3; patrimônio total no Início
+2. [ ] **Exportação de Relatórios** — Excel primeiro (transações, resumo do mês, posição em 31/12 para o IR); PDF depois
+3. [ ] **Alertas de preço alvo no desktop** — Notificação do Windows, com o app na bandeja do sistema (sem e-mail: exigiria guardar senha de SMTP)
+4. [ ] **Criptomoedas na carteira** — Começando pelo yfinance (BTC-USD, ETH-USD); CoinGecko só se faltar alguma moeda
 
-### 📋 Planejado
-- [ ] **Interface TUI** — Modo texto interativo com [Textual](https://textual.textualize.io/)
-- [ ] **Modo Servidor (API REST)** — Endpoint HTTP para integração com outros sistemas
-- [ ] **Exportação de Relatórios** — Geração de relatórios em PDF e Excel
-- [ ] **Multi-idioma** — Suporte a inglês e espanhol na interface
-- [ ] **Plugins** — Sistema de extensões para coletores e análises personalizadas
-- [ ] **Integração com Corretoras** — API para consulta de posições e geração de ordens
-- [ ] **Carteira de Investimentos** — Portfolio tracker com rentabilidade
+### 📋 Depois
+- [ ] **Criptografar o banco** — Protege os dados de verdade; o PIN só protege a tela
+- [ ] **Windows Hello** — Biometria no lugar do PIN
+- [ ] **Assinar o executável e o instalador** — Quando houver usuários de fora (custa um certificado)
+
+### 🚫 Descartados (por enquanto)
+| Ideia | Por quê |
+|---|---|
+| Interface TUI (Textual) | Seria a terceira interface; a CLI já cobre o modo texto e o Streamlit foi removido para ter uma só |
+| Modo servidor (API REST aberto) | A API existe, mas presa ao `127.0.0.1` e com token de propósito; abrir para a rede contraria o modelo de segurança |
+| Multi-idioma | O produto é brasileiro (B3, Pix, CDI, IR, bancos locais) |
+| Plugins | Ninguém para escrevê-los, e seria código de terceiros com acesso às finanças |
+| Integração com corretoras / ordens | Sem API para pessoa física no Brasil; ordens a partir de um modelo pequeno que erra é risco demais. A importação da B3 cobre a consulta de posições |
 
 ---
 
