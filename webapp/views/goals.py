@@ -4,6 +4,8 @@ from datetime import datetime
 
 import streamlit as st
 
+from stonks_ai.utils.formatters import format_currency
+
 
 def page_goals(financial_agent, personal_finance_agent):
     st.markdown("## 🎯 Metas Financeiras")
@@ -40,8 +42,8 @@ def _tab_list_goals(personal_finance_agent):
                             st.markdown(f"**{icon} {g['name']}**")
                             st.progress(min(pct / 100, 1.0))
                             st.caption(
-                                f"R$ {g['current_amount']:,.2f} / "
-                                f"R$ {g['target_amount']:,.2f} ({pct:.1f}%)"
+                                f"{format_currency(g['current_amount'])} / "
+                                f"{format_currency(g['target_amount'])} ({pct:.1f}%)"
                             )
                             extra_info = []
                             gt = g.get("goal_type", "")
@@ -65,7 +67,7 @@ def _tab_list_goals(personal_finance_agent):
                                         with st.spinner("Atualizando..."):
                                             try:
                                                 updated = personal_finance_agent.contribute_to_goal(goal_id, contrib)
-                                                st.success(f"✅ R$ {contrib:,.2f} adicionado!")
+                                                st.success(f"✅ {format_currency(contrib)} adicionado!")
                                                 if updated["status"] == "completed":
                                                     st.balloons()
                                                 st.rerun()
@@ -74,11 +76,11 @@ def _tab_list_goals(personal_finance_agent):
 
                         with col_actions:
                             st.markdown("###### Ações")
-                            if st.button("✏️ Editar", key=f"edit_goal_{goal_id}", use_container_width=True):
+                            if st.button("✏️ Editar", key=f"edit_goal_{goal_id}", width='stretch'):
                                 st.session_state["edit_goal_id"] = goal_id
                                 st.session_state["edit_goal_data"] = g
                                 st.rerun()
-                            if st.button("🗑️ Excluir", key=f"del_goal_{goal_id}", use_container_width=True):
+                            if st.button("🗑️ Excluir", key=f"del_goal_{goal_id}", width='stretch'):
                                 st.session_state["del_goal_id"] = goal_id
                                 st.session_state["del_goal_name"] = g["name"]
                                 st.rerun()

@@ -12,6 +12,57 @@ from stonks_ai.models.category import Category, DEFAULT_CATEGORIES
 from stonks_ai.models.transaction import Transaction
 
 
+# O que entra em cada categoria padrão. Modelos pequenos erram muito sem isso
+# (ex.: conta de luz em "Assinaturas", streaming em "Lazer").
+CATEGORY_HINTS = {
+    "Alimentação": "mercado, atacado, padaria, restaurante, lanchonete, delivery de comida",
+    "Transporte": "aplicativos de corrida, táxi, combustível, estacionamento, ônibus, metrô, despesas com veículo e estradas",
+    "Moradia": "aluguel, condomínio, IPTU, contas de consumo da casa (energia, água, gás)",
+    "Assinaturas": "streaming de vídeo ou música e outros serviços digitais cobrados todo mês",
+    "Saúde": "drogaria, remédios, plano de saúde, consultas, exames",
+    "Lazer": "cinema, shows, jogos e lojas de jogos digitais, passeios, bares",
+    "Educação": "escola, faculdade, cursos e plataformas de ensino, livros",
+    "Salário": "salário ou pagamento recebido do empregador",
+    "Transferências": "Pix, TED ou DOC enviados ou recebidos entre pessoas",
+    "Investimentos": "aplicações, resgates, compra e venda de ações, títulos ou fundos, corretoras",
+    "Outros": "use somente se nenhuma outra categoria servir",
+}
+
+# Exemplos com marcas diferentes das usadas na avaliação (evals/casos.jsonl)
+_CATEGORY_EXAMPLES = (
+    "'MC DONALDS 0231' -> Alimentação\n"
+    "'SHELL SELECT POSTO' -> Transporte\n"
+    "'HBO MAX' -> Assinaturas"
+)
+
+
+def build_categorization_prompt(description: str, category_names: List[str]) -> str:
+    """Prompt usado para classificar uma transação com IA (também usado em evals/)."""
+    lines = [f"- {n}: {CATEGORY_HINTS[n]}" if n in CATEGORY_HINTS else f"- {n}" for n in category_names]
+    return (
+        "Classifique a transação de extrato bancário em UMA das categorias abaixo.\n\n"
+        "Categorias:\n" + "\n".join(lines) + "\n\n"
+        f"Exemplos:\n{_CATEGORY_EXAMPLES}\n\n"
+        f"Transação: '{description}'\n\n"
+        "Responda APENAS com o nome exato de uma categoria, sem pontuação ou texto extra."
+    )
+
+
+def parse_category(response: str, category_names: List[str]) -> Optional[str]:
+    """Extrai a categoria da resposta do modelo.
+
+    Prefere a resposta exata; senão, a categoria citada primeiro no texto
+    (e não a primeira da lista, que viciava tudo em "Alimentação").
+    """
+    clean = response.strip().strip(".'\"").lower()
+    for name in category_names:
+        if clean == name.lower():
+            return name
+    found = [(response.lower().find(n.lower()), n) for n in category_names]
+    found = [(pos, n) for pos, n in found if pos >= 0]
+    return min(found)[1] if found else None
+
+
 class Categorizer:
     """
     Classificador automático de transações financeiras.
@@ -91,26 +142,22 @@ class Categorizer:
             return self._llm_cache[cache_key]
 
         try:
-            from stonks_ai.llm.client import OllamaClient
+            from stonks_ai.llm.client import get_local_llm_client
 
-            llm = OllamaClient()
+            llm = get_local_llm_client()
             if not llm.is_available():
                 return None, "Sem categoria"
 
             cat_names = [c["name"] for c in available_categories]
 
-            prompt = (
-                f"Classifique a transação abaixo em UMA das categorias: "
-                f"{', '.join(cat_names)}.\n\n"
-                f"Descrição: '{description}'\n\n"
-                "Responda APENAS com o nome exato da categoria, sem pontuação ou texto extra."
-            )
+            prompt = build_categorization_prompt(description, cat_names)
 
             response = llm.generate(prompt).strip()
 
             # Tenta encontrar a categoria pelo nome retornado
+            chosen = parse_category(response, cat_names)
             for cat in available_categories:
-                if cat["name"].lower() in response.lower():
+                if cat["name"] == chosen:
                     result = (cat.get("id"), cat["name"])
                     self._llm_cache[cache_key] = result
                     return result

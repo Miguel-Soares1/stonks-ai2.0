@@ -22,6 +22,12 @@ Formato de resposta:
 - Oportunidades
 - Recomendação Geral (Compra/Mantém/Vende com justificativa)
 
+Como ler os indicadores:
+- Cite explicitamente o P/L e o P/VP fornecidos. P/L negativo significa que a empresa teve prejuízo.
+- Beta acima de 1 indica que a ação oscila mais que o mercado.
+- Use os números exatamente como fornecidos; não invente valores que não estão nos dados.
+- Termine lembrando que a análise não é recomendação de investimento.
+
 Use português brasileiro claro e objetivo.
 """
 
@@ -62,9 +68,23 @@ REGRAS IMPORTANTES:
 - Quando relevante, cite fontes confiáveis (BACEN, CVM, B3, relatórios setoriais)
 - Mantenha o tom profissional mas acessível
 - Não forneça aconselhamento financeiro personalizado sem a ressalva adequada
+- Nunca preveja preços nem diga qual ação vai subir: explique que não é possível prever
+- Promessa de retorno alto garantido, ou de ganho por convidar outras pessoas, é sinal de
+  golpe ou pirâmide financeira: diga isso claramente
+- Se a pergunta for sobre comprar ou vender um ativo específico, diga que isto não é
+  recomendação de investimento
 
 Formato: Seja natural e conversacional. Adapte a complexidade da resposta
 ao nível de conhecimento demonstrado pelo usuário.
+"""
+
+# Entra no prompt do chat quando a base de conhecimento tem verbetes relevantes
+CHAT_REFERENCE_BLOCK = """
+
+REFERÊNCIAS CONFERIDAS (use como fonte principal; não contradiga estes fatos e
+repita os números exatamente como estão):
+
+{context}
 """
 
 # ── Prompts de Finanças Pessoais ────────────────────────────────────────
@@ -82,9 +102,13 @@ TRANSAÇÕES: {transaction_count}
 GASTOS POR CATEGORIA:
 {categories}
 
+FATOS JÁ CALCULADOS (use exatamente, sem refazer contas):
+- Saldo do mês: {balance_fact}
+- Principal categoria de gasto: {top_category_fact}
+
 Escreva um parágrafo curto destacando:
-1. O saldo do mês (positivo ou negativo)
-2. A principal categoria de gasto
+1. O saldo do mês (positivo ou negativo), como nos fatos acima
+2. A principal categoria de gasto, como nos fatos acima
 3. Uma dica prática baseada nos dados
 4. Tom neutro e informativo (sem alarmismo)
 """
@@ -105,15 +129,105 @@ ECONOMIA MENSAL NECESSÁRIA: R$ {monthly_needed:.2f}
 DADOS DO USUÁRIO:
 - Gasto médio diário: R$ {avg_daily_expense:.2f}
 - Renda mensal: R$ {monthly_income:.2f}
+- Sobra mensal estimada (renda menos 30 dias de gasto médio): R$ {free_income:.2f}
+
+VEREDITO JÁ CALCULADO (use exatamente, sem refazer contas): {verdict}
 
 Sua resposta deve incluir:
-1. ✅ Viabilidade da meta (realista ou precisa ajuste)
+1. ✅ Viabilidade da meta, conforme o veredito acima
 2. 📊 Plano de ação com economia mensal sugerida
 3. 💡 Dicas práticas para acelerar o progresso
 4. ⚠️ Alertas sobre possíveis obstáculos
 
-Seja prático e motivacional, mas realista.
+Seja prático e motivacional, mas realista. Ao citar valores, use apenas os números acima.
 """
+
+
+def _brl(value: float) -> str:
+    return f"R$ {value:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+def build_chat_system_prompt(question: str) -> str:
+    """Prompt do chat com os verbetes da base de conhecimento relevantes para a pergunta."""
+    from stonks_ai.knowledge import context_for
+
+    context = context_for(question)
+    if not context:
+        return FINANCIAL_CHAT_SYSTEM_PROMPT
+    return FINANCIAL_CHAT_SYSTEM_PROMPT + CHAT_REFERENCE_BLOCK.format(context=context)
+
+
+def chat_query_from_messages(messages: list) -> str:
+    """Texto usado na busca: a última pergunta e a anterior (para perguntas de continuação)."""
+    user_msgs = [m["content"] for m in messages if m.get("role") == "user"]
+    return " ".join(user_msgs[-2:])
+
+
+def format_monthly_summary_prompt(month: int, year: int, summary: dict) -> str:
+    """Prompt do resumo mensal. Os fatos que o modelo costuma errar vêm prontos do Python."""
+    cats = summary.get("top_categories") or []
+    categories = "\n".join(f"  - {c['name']}: R$ {c['amount']:.2f} ({c['percent']}%)" for c in cats)
+    balance = summary["balance"]
+    if balance >= 0:
+        balance_fact = f"POSITIVO: sobraram {_brl(balance)}"
+    else:
+        balance_fact = f"NEGATIVO: as despesas superaram as receitas em {_brl(-balance)}"
+    if cats:
+        top = max(cats, key=lambda c: c["amount"])
+        top_fact = f"{top['name']}, com {_brl(top['amount'])} ({top['percent']}% das despesas)"
+    else:
+        top_fact = "não há despesas categorizadas"
+    return FINANCIAL_MONTHLY_SUMMARY_PROMPT.format(
+        month=month, year=year,
+        total_income=summary["total_income"], total_expense=summary["total_expense"],
+        balance=balance, avg_daily_expense=summary["avg_daily_expense"],
+        transaction_count=summary["transaction_count"], categories=categories,
+        balance_fact=balance_fact, top_category_fact=top_fact,
+    )
+
+
+def goal_verdict(remaining: float, monthly_needed: float, free_income: float) -> str:
+    """Viabilidade da meta calculada em Python (modelos pequenos erram essa conta)."""
+    if remaining <= 0:
+        return "META JÁ ALCANÇADA."
+    if free_income <= 0:
+        return ("INVIÁVEL: os gastos médios já consomem toda a renda; "
+                "é preciso reduzir gastos antes de guardar para a meta.")
+    share = monthly_needed / free_income
+    if share <= 0.5:
+        return f"VIÁVEL: exige guardar {share:.0%} do que sobra por mês ({_brl(monthly_needed)})."
+    if share <= 1:
+        return f"APERTADA: exige guardar {share:.0%} do que sobra por mês ({_brl(monthly_needed)})."
+    months = -(-remaining // (free_income * 0.5))  # arredonda para cima
+    return (f"INVIÁVEL NO PRAZO ATUAL: seria preciso guardar {_brl(monthly_needed)} por mês, "
+            f"mas sobram cerca de {_brl(free_income)}. Guardando metade da sobra, "
+            f"a meta levaria cerca de {months:.0f} meses: sugira aumentar o prazo ou reduzir o valor.")
+
+
+def format_goal_prompt(
+    goal_name: str, target: float, current: float, remaining: float, progress: float,
+    deadline: str, days_left, monthly_needed: float, avg_daily_expense: float,
+    monthly_income: float,
+) -> str:
+    """Prompt da análise de meta, com a sobra mensal e o veredito já calculados."""
+    free_income = monthly_income - avg_daily_expense * 30
+    return FINANCIAL_GOAL_ANALYSIS_PROMPT.format(
+        goal_name=goal_name, target=target, current=current, remaining=remaining,
+        progress=progress, deadline=deadline, days_left=days_left,
+        monthly_needed=monthly_needed, avg_daily_expense=avg_daily_expense,
+        monthly_income=monthly_income, free_income=free_income,
+        verdict=goal_verdict(remaining, monthly_needed, free_income),
+    )
+
+
+def _as_percent(fraction) -> str:
+    """0.061 -> '6.1%'. Deixa explícita a unidade para o modelo não confundir fração com percentual."""
+    if fraction is None:
+        return "N/A"
+    try:
+        return f"{float(fraction) * 100:.1f}%"
+    except (TypeError, ValueError):
+        return str(fraction)
 
 
 def format_stock_analysis_prompt(quote_data: dict, fundamentals: dict = None) -> str:
@@ -140,9 +254,9 @@ DADOS FUNDAMENTALISTAS:
 - Market Cap: {fundamentals.get('currency')} {fundamentals.get('market_cap', 0):,.0f}
 - P/L: {fundamentals.get('pe_ratio', 'N/A')}
 - P/VP: {fundamentals.get('pb_ratio', 'N/A')}
-- Dividend Yield: {fundamentals.get('dividend_yield', 'N/A')}
-- ROE: {fundamentals.get('roe', 'N/A')}
-- Margem Líquida: {fundamentals.get('net_margin', 'N/A')}
+- Dividend Yield (12 meses): {_as_percent(fundamentals.get('dividend_yield'))}
+- ROE: {_as_percent(fundamentals.get('roe'))}
+- Margem Líquida: {_as_percent(fundamentals.get('net_margin'))}
 - Beta: {fundamentals.get('beta', 'N/A')}
 """
 

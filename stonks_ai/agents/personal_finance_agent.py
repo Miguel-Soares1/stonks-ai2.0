@@ -21,19 +21,19 @@ from stonks_ai.collectors.finance.csv_importer import CSVImporter
 from stonks_ai.collectors.finance.excel_importer import ExcelImporter
 from stonks_ai.collectors.finance.pdf_importer import PDFImporter
 from stonks_ai.database import DatabaseError, db
-from stonks_ai.llm.prompts import (
-    FINANCIAL_GOAL_ANALYSIS_PROMPT,
-    FINANCIAL_MONTHLY_SUMMARY_PROMPT,
-)
+from stonks_ai.llm.prompts import format_goal_prompt, format_monthly_summary_prompt
 from stonks_ai.models.alert import Alert, AlertConfig, DEFAULT_ALERT_CONFIGS
+from stonks_ai.models.account import Account, DEFAULT_ACCOUNTS
 from stonks_ai.models.category import Category, DEFAULT_CATEGORIES
 from stonks_ai.models.financial_goal import FinancialGoal
 from stonks_ai.models.transaction import Transaction
 from stonks_ai.utils.finance_utils import (
     check_and_generate_alerts,
     get_balance_history,
+    get_budget_overview,
     get_goal_analysis,
     get_month_summary,
+    get_multi_month_summary,
     save_alerts,
 )
 
@@ -56,11 +56,12 @@ class PersonalFinanceAgent(BaseAgent):
 
         - Cria categorias padrão
         - Cria configurações de alerta padrão
+        - Cria contas padrão
 
         Returns:
             Dict com resultados da inicialização.
         """
-        results = {"categories": 0, "alert_configs": 0}
+        results = {"categories": 0, "alert_configs": 0, "accounts": 0}
 
         # Categorias padrão
         results["categories"] = Categorizer.initialize_default_categories()
@@ -77,6 +78,18 @@ class PersonalFinanceAgent(BaseAgent):
         except Exception as e:
             raise AgentError(f"Erro ao inicializar alertas: {e}")
 
+        # Contas padrão
+        try:
+            with db.session() as session:
+                existing = session.query(Account).count()
+                if existing == 0:
+                    for acc in DEFAULT_ACCOUNTS:
+                        account = Account(**acc)
+                        session.add(account)
+                        results["accounts"] += 1
+        except Exception as e:
+            raise AgentError(f"Erro ao inicializar contas: {e}")
+
         return results
 
     # ── Transações ───────────────────────────────────────────────────
@@ -86,6 +99,7 @@ class PersonalFinanceAgent(BaseAgent):
         limit: int = 50,
         offset: int = 0,
         category_id: Optional[int] = None,
+        account_id: Optional[int] = None,
         transaction_type: Optional[str] = None,
         days: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
@@ -96,6 +110,8 @@ class PersonalFinanceAgent(BaseAgent):
 
                 if category_id is not None:
                     query = query.filter(Transaction.category_id == category_id)
+                if account_id is not None:
+                    query = query.filter(Transaction.account_id == account_id)
                 if transaction_type:
                     query = query.filter(Transaction.type == transaction_type)
                 if days:
@@ -133,6 +149,7 @@ class PersonalFinanceAgent(BaseAgent):
         date: Optional[str] = None,
         tx_type: str = "expense",
         category_name: Optional[str] = None,
+        account_id: Optional[int] = None,
         notes: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Adiciona uma transação manualmente."""
@@ -166,6 +183,7 @@ class PersonalFinanceAgent(BaseAgent):
                 type=tx_type,
                 category_id=category_id,
                 category_name=category_name,
+                account_id=account_id,
                 date=tx_date,
                 source="manual",
                 notes=notes,
@@ -375,6 +393,12 @@ class PersonalFinanceAgent(BaseAgent):
             "active_goals": active_goals,
         }
 
+    def build_monthly_summary_prompt(
+        self, year: int, month: int, summary: Optional[Dict[str, Any]] = None
+    ) -> str:
+        """Monta o prompt do resumo mensal (usado também pelo streaming do app desktop)."""
+        return format_monthly_summary_prompt(month, year, summary or get_month_summary(year, month))
+
     def get_monthly_summary_ai(self, year: int, month: int) -> str:
         """
         Gera resumo em linguagem natural do mês usando IA.
@@ -390,22 +414,7 @@ class PersonalFinanceAgent(BaseAgent):
         if summary["transaction_count"] == 0:
             return "Nenhuma transação registrada neste período."
 
-        # Prepara dados para o prompt
-        categories_str = "\n".join(
-            f"  - {c['name']}: R$ {c['amount']:.2f} ({c['percent']}%)"
-            for c in summary["top_categories"]
-        )
-
-        prompt = FINANCIAL_MONTHLY_SUMMARY_PROMPT.format(
-            month=month,
-            year=year,
-            total_income=summary["total_income"],
-            total_expense=summary["total_expense"],
-            balance=summary["balance"],
-            transaction_count=summary["transaction_count"],
-            avg_daily_expense=summary["avg_daily_expense"],
-            categories=categories_str,
-        )
+        prompt = self.build_monthly_summary_prompt(year, month, summary)
 
         if self.check_llm_available():
             try:
@@ -422,6 +431,18 @@ class PersonalFinanceAgent(BaseAgent):
             f"  Média diária: R$ {summary['avg_daily_expense']:.2f}\n"
             f"  Total de transações: {summary['transaction_count']}"
         )
+
+    def get_multi_month_dashboard(self, months: int = 6) -> Dict[str, Any]:
+        """
+        Obtém dados agregados para gráficos do dashboard.
+
+        Returns:
+            Dict com: monthly_summaries, balance_history.
+        """
+        return {
+            "monthly_summaries": get_multi_month_summary(months),
+            "balance_history": get_balance_history(days=90),
+        }
 
     # ── Metas Financeiras ────────────────────────────────────────────
 
@@ -602,7 +623,7 @@ class PersonalFinanceAgent(BaseAgent):
                 )
                 avg_expense = summary["avg_daily_expense"]
 
-                prompt = FINANCIAL_GOAL_ANALYSIS_PROMPT.format(
+                prompt = format_goal_prompt(
                     goal_name=goal_data["name"],
                     target=goal_data["target_amount"],
                     current=goal_data["current_amount"],
@@ -662,6 +683,146 @@ class PersonalFinanceAgent(BaseAgent):
                     return False
                 alert.dismissed = 1
                 session.add(alert)
+            return True
+        except Exception:
+            return False
+
+    # ── Orçamento ──────────────────────────────────────────────────
+
+    def get_budget_overview(
+        self, year: Optional[int] = None, month: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """Obtém visão de orçamento: limites vs realizado por categoria."""
+        now = datetime.now(timezone.utc)
+        return get_budget_overview(year or now.year, month or now.month)
+
+    def set_category_budget(
+        self, category_id: int, budget_limit: float
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Define o limite de orçamento para uma categoria.
+
+        Args:
+            category_id: ID da categoria.
+            budget_limit: Limite em reais (será convertido para centavos).
+
+        Returns:
+            Dict da categoria atualizada ou None se não encontrada.
+        """
+        try:
+            with db.session() as session:
+                cat = session.query(Category).get(category_id)
+                if not cat:
+                    return None
+                cat.budget_limit = int(budget_limit * 100)  # converte para centavos
+                session.add(cat)
+                session.flush()
+                return cat.to_dict()
+        except DatabaseError as e:
+            raise AgentError(f"Erro ao definir orçamento: {e}")
+
+    # ── Contas ──────────────────────────────────────────────────────
+
+    def list_accounts(self, active_only: bool = True) -> List[Dict[str, Any]]:
+        """Lista todas as contas financeiras."""
+        try:
+            with db.session() as session:
+                query = session.query(Account).order_by(Account.created_at)
+                if active_only:
+                    query = query.filter(Account.is_active == 1)
+                return [a.to_dict() for a in query.all()]
+        except DatabaseError as e:
+            raise AgentError(f"Erro ao listar contas: {e}")
+
+    def get_account(self, account_id: int) -> Optional[Dict[str, Any]]:
+        """Busca uma conta pelo ID."""
+        try:
+            with db.session() as session:
+                acc = session.query(Account).get(account_id)
+                return acc.to_dict() if acc else None
+        except DatabaseError as e:
+            raise AgentError(f"Erro ao buscar conta: {e}")
+
+    def create_account(
+        self,
+        name: str,
+        account_type: str = "checking",
+        balance: float = 0.0,
+        currency: str = "BRL",
+        icon: str = "🏦",
+        color: Optional[str] = None,
+        notes: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Cria uma nova conta financeira."""
+        acc = Account(
+            name=name.strip(),
+            account_type=account_type,
+            balance=balance,
+            currency=currency,
+            icon=icon,
+            color=color,
+            notes=notes,
+        )
+        try:
+            with db.session() as session:
+                session.add(acc)
+                session.flush()
+                return acc.to_dict()
+        except DatabaseError as e:
+            raise AgentError(f"Erro ao criar conta: {e}")
+
+    def update_account(
+        self,
+        account_id: int,
+        name: Optional[str] = None,
+        account_type: Optional[str] = None,
+        balance: Optional[float] = None,
+        icon: Optional[str] = None,
+        color: Optional[str] = None,
+        notes: Optional[str] = None,
+        is_active: Optional[bool] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Atualiza uma conta existente."""
+        try:
+            with db.session() as session:
+                acc = session.query(Account).get(account_id)
+                if not acc:
+                    return None
+                if name is not None:
+                    acc.name = name.strip()
+                if account_type is not None:
+                    acc.account_type = account_type
+                if balance is not None:
+                    acc.balance = balance
+                if icon is not None:
+                    acc.icon = icon
+                if color is not None:
+                    acc.color = color
+                if notes is not None:
+                    acc.notes = notes
+                if is_active is not None:
+                    acc.is_active = 1 if is_active else 0
+                session.add(acc)
+                session.flush()
+                return acc.to_dict()
+        except DatabaseError as e:
+            raise AgentError(f"Erro ao atualizar conta: {e}")
+
+    def delete_account(self, account_id: int) -> bool:
+        """Remove uma conta (desativa se tiver transacoes)."""
+        try:
+            with db.session() as session:
+                acc = session.query(Account).get(account_id)
+                if not acc:
+                    return False
+                tx_count = session.query(Transaction).filter(
+                    Transaction.account_id == account_id
+                ).count()
+                if tx_count > 0:
+                    acc.is_active = 0
+                    session.add(acc)
+                else:
+                    session.delete(acc)
             return True
         except Exception:
             return False

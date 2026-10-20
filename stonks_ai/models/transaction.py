@@ -19,6 +19,7 @@ class Transaction(Base):
     type = Column(String(20), nullable=False, default="expense")  # expense, income
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=True, index=True)
     category_name = Column(String(100), nullable=True)  # Denormalizado para performance
+    account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True, index=True)
     date = Column(DateTime, nullable=False, index=True)
     source = Column(String(20), nullable=False, default="manual")  # manual, csv, excel, pdf
     source_file = Column(String(500), nullable=True)
@@ -46,6 +47,7 @@ class Transaction(Base):
             "type": self.type,
             "category_id": self.category_id,
             "category_name": self.category_name or "Sem categoria",
+            "account_id": self.account_id,
             "date": self.date.isoformat() if self.date else None,
             "source": self.source,
             "is_recurring": bool(self.is_recurring),

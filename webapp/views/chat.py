@@ -46,7 +46,7 @@ def page_chat(financial_agent, personal_finance_agent):
         for i, question in enumerate(quick_questions):
             col = cols[i % 2]
             with col:
-                if st.button(question, key=f"quick_q_{i}", use_container_width=True):
+                if st.button(question, key=f"quick_q_{i}", width='stretch'):
                     _handle_chat_message(financial_agent, question)
 
     # Exibe histórico
@@ -63,7 +63,7 @@ def page_chat(financial_agent, personal_finance_agent):
         st.markdown("---")
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
-            if st.button("🗑️ Limpar Conversa", use_container_width=True):
+            if st.button("🗑️ Limpar Conversa", width='stretch'):
                 st.session_state["chat_history"] = []
                 st.rerun()
 

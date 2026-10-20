@@ -16,6 +16,7 @@ from stonks_ai.collectors.stocks.base import (
     StockFundamentals,
     StockHistory,
     StockQuote,
+    dividend_yield_from_info,
 )
 from stonks_ai.config import config
 
@@ -178,7 +179,7 @@ class B3Collector(BaseStockCollector):
                 sector=info.get("sector") or info.get("industry") or "N/A",
                 market_cap=info.get("marketCap") or 0,
                 pe_ratio=info.get("trailingPE") or info.get("forwardPE"),
-                dividend_yield=info.get("dividendYield"),
+                dividend_yield=dividend_yield_from_info(info),
                 eps=info.get("trailingEps"),
                 beta=info.get("beta"),
                 pb_ratio=info.get("priceToBook"),

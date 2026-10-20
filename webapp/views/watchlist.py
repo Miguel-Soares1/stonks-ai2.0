@@ -42,7 +42,7 @@ def _render_watchlist_table(financial_agent, limit=None):
                         "Preço": "Erro", "Variação": "-", "Alvo": "-",
                     })
 
-        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(rows), width='stretch', hide_index=True)
 
     except DatabaseError as e:
         st.error(f"❌ Erro no banco: {e}")

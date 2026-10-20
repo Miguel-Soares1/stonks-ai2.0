@@ -59,7 +59,7 @@ def page_history(financial_agent, personal_finance_agent):
                     render_metric("Fechamento Atual", f"{last['close']:.2f}", change_pct)
 
                 fig = build_price_chart(h.data, ticker.upper(), title=f"{ticker.upper()} - {period}")
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
 
                 st.markdown("### 📋 Últimos pregões")
                 df_display = pd.DataFrame(h.data[-20:])
@@ -69,7 +69,7 @@ def page_history(financial_agent, personal_finance_agent):
                     "low": "Mínima", "close": "Fechamento", "volume": "Volume",
                 })
                 df_display["Volume"] = df_display["Volume"].apply(lambda x: format_large_number(x))
-                st.dataframe(df_display, use_container_width=True, hide_index=True)
+                st.dataframe(df_display, width='stretch', hide_index=True)
 
             except StockCollectorError as e:
                 st.error(f"❌ {e}")

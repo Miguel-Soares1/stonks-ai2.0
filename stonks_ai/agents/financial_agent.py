@@ -137,6 +137,20 @@ class FinancialAgent(BaseAgent):
             "timestamp": datetime.now(),
         }
 
+    @staticmethod
+    def build_comparison_prompt(
+        quotes: List[StockQuote], fund_list: List[Optional[StockFundamentals]]
+    ) -> str:
+        """Monta o prompt de comparação (usado também pelo streaming do app desktop)."""
+        ticker_data = []
+        for q, f in zip(quotes, fund_list):
+            info = f"📈 {q.ticker} ({q.exchange}): {q.currency} {q.price:.2f} ({q.change_percent:+.2f}%)"
+            if f:
+                dy = f"{f.dividend_yield * 100:.1f}%" if f.dividend_yield is not None else "N/A"
+                info += f" | P/L: {f.pe_ratio or 'N/A'} | DY: {dy}"
+            ticker_data.append(info)
+        return FINANCIAL_COMPARISON_PROMPT.format(ações="\n".join(ticker_data))
+
     def compare(self, tickers: List[str]) -> Dict[str, Any]:
         """
         Compara múltiplas ações usando IA.
@@ -163,17 +177,7 @@ class FinancialAgent(BaseAgent):
             except StockCollectorError as e:
                 raise AgentError(f"Erro ao obter dados de {ticker}: {e}")
 
-        # Prepara prompt de comparação
-        ticker_data = []
-        for q, f in zip(quotes, fund_list):
-            info = f"📈 {q.ticker} ({q.exchange}): R$ {q.price:.2f} ({q.change_percent:+.2f}%)"
-            if f:
-                info += f" | P/L: {f.pe_ratio or 'N/A'} | DY: {f.dividend_yield or 'N/A'}"
-            ticker_data.append(info)
-
-        prompt = FINANCIAL_COMPARISON_PROMPT.format(
-            ações="\n".join(ticker_data)
-        )
+        prompt = self.build_comparison_prompt(quotes, fund_list)
 
         if self.check_llm_available():
             analysis = self.get_llm_analysis(

@@ -68,6 +68,8 @@ class OllamaProvider(BaseLLMProvider):
         temperature: float = 0.3,
         max_tokens: int = 2048,
         timeout: int = 120,
+        num_ctx: int = 4096,
+        keep_alive: str = "2m",
     ):
         super().__init__(
             model=model,
@@ -76,6 +78,10 @@ class OllamaProvider(BaseLLMProvider):
             timeout=timeout,
         )
         self.endpoint = endpoint.rstrip("/")
+        # num_ctx define o tamanho do KV cache (principal consumo de RAM além dos pesos);
+        # keep_alive controla quanto tempo o modelo fica carregado após a última chamada.
+        self.num_ctx = num_ctx
+        self.keep_alive = keep_alive
         self._available = False
         self._last_check_time: float = 0.0
         self._last_check_success: bool = False
@@ -260,6 +266,13 @@ class OllamaProvider(BaseLLMProvider):
         # Não deveria chegar aqui, mas segurança
         raise last_error  # type: ignore[misc]
 
+    def _options(self) -> Dict[str, Any]:
+        return {
+            "temperature": self.temperature,
+            "num_predict": self.max_tokens,
+            "num_ctx": self.num_ctx,
+        }
+
     # ── Core Interface ───────────────────────────────────────────────────
 
     def generate(self, prompt: str, system_prompt: Optional[str] = None) -> str:
@@ -301,10 +314,8 @@ class OllamaProvider(BaseLLMProvider):
             response = client.chat(
                 model=self.model,
                 messages=full_messages,
-                options={
-                    "temperature": self.temperature,
-                    "num_predict": self.max_tokens,
-                },
+                options=self._options(),
+                keep_alive=self.keep_alive,
             )
 
             result = response["message"]["content"]
@@ -340,26 +351,33 @@ class OllamaProvider(BaseLLMProvider):
         system_prompt: Optional[str] = None,
     ) -> AsyncGenerator[str, None]:
         """Streaming nativo via Ollama."""
+        messages = [{"role": "user", "content": prompt}]
+        async for chunk in self.generate_stream_from_messages(messages, system_prompt):
+            yield chunk
+
+    async def generate_stream_from_messages(
+        self,
+        messages: List[Dict[str, str]],
+        system_prompt: Optional[str] = None,
+    ) -> AsyncGenerator[str, None]:
+        """Streaming nativo via Ollama a partir de uma conversa."""
         self._ensure_available()
 
         try:
             import ollama
 
-            messages = []
+            full_messages = list(messages)
             if system_prompt:
-                messages.append({"role": "system", "content": system_prompt})
-            messages.append({"role": "user", "content": prompt})
+                full_messages.insert(0, {"role": "system", "content": system_prompt})
 
             logger.debug("Iniciando streaming para modelo '%s'", self.model)
             client = ollama.Client(host=self.endpoint, timeout=self.timeout)
             stream = client.chat(
                 model=self.model,
-                messages=messages,
+                messages=full_messages,
                 stream=True,
-                options={
-                    "temperature": self.temperature,
-                    "num_predict": self.max_tokens,
-                },
+                options=self._options(),
+                keep_alive=self.keep_alive,
             )
 
             for chunk in stream:

@@ -116,6 +116,7 @@ class CSVImporter(FinanceImporter):
             # Detecta banco pelo conteúdo se não foi pelo nome
             if not bank:
                 bank = detect_bank_from_content(rows[0])
+                pattern = BANK_CSV_PATTERNS.get(bank, {}) if bank else {}
 
             if has_header or bank:
                 # Pula linhas de cabeçalho
@@ -179,7 +180,7 @@ class CSVImporter(FinanceImporter):
                 date_str = ""
 
                 for cell in cells:
-                    if re.match(r"^[\d,.]+$", cell.replace(".", "").replace(",", "")):
+                    if re.match(r"^-?[\d,.]+$", cell.replace(".", "").replace(",", "")):
                         amount_str = cell
                     elif re.match(r"\d{2}/\d{2}/\d{4}", cell) or re.match(r"\d{4}-\d{2}-\d{2}", cell):
                         date_str = cell

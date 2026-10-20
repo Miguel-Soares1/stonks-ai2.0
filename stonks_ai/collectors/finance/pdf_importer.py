@@ -206,9 +206,9 @@ class PDFImporter(FinanceImporter):
         Fallback quando regex não consegue extrair.
         """
         try:
-            from stonks_ai.llm.client import OllamaClient
+            from stonks_ai.llm.client import get_local_llm_client
 
-            llm = OllamaClient()
+            llm = get_local_llm_client()
             if not llm.is_available():
                 return []
 

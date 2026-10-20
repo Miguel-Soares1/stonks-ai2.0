@@ -792,6 +792,180 @@ def categories():
         console.print(f"[red]Erro ao listar categorias: {e}[/]")
 
 
+# ====== COMMAND: finance budget ======
+@finance.command(name="budget")
+@click.option("--year", "-y", type=int, default=None, help="Ano (ex: 2025)")
+@click.option("--month", "-m", type=int, default=None, help="Mês (1-12)")
+@click.option("--set", "set_budget", nargs=2, metavar="CATEGORIA_ID VALOR", help="Definir orcamento: ID VALOR (ex: 1 500.00)")
+def budget_cmd(year, month, set_budget):
+    """💰 Orcamento mensal — Visao geral de limites por categoria.
+
+    Exemplos:
+        stonks finance budget                # Visao geral do mes atual
+        stonks finance budget -m 3           # Visao do mes de marco
+        stonks finance budget --set 1 500    # Define limite de R$500 para categoria 1
+    """
+    try:
+        if set_budget:
+            cat_id, value = set_budget
+            cat_id = int(cat_id)
+            value = float(value)
+            cat = personal_finance_agent.set_category_budget(cat_id, value)
+            if cat:
+                console.print(f"[green]Orcamento definido: {cat['name']} → R$ {value:,.2f}[/]")
+            else:
+                console.print(f"[red]Categoria {cat_id} nao encontrada.[/]")
+            return
+
+        with console.status("[bold green]Montando orcamento..."):
+            data = personal_finance_agent.get_budget_overview(year, month)
+
+        now = __import__("datetime").datetime.now()
+        year = year or now.year
+        month = month or now.month
+
+        console.print(f"\n[bold cyan]💰 Orcamento — {month:02d}/{year}[/]\n")
+
+        # Resumo geral
+        s1, s2, s3 = data["total_budget"], data["total_spent"], data["total_budget"] - data["total_spent"]
+        status_icon = "🔴" if data["overall_status"] == "exceeded" else "🟡" if data["overall_status"] == "warning" else "🟢"
+
+        summary_table = Table(show_header=False, box=box.ROUNDED, title=f"{status_icon} Resumo Geral")
+        summary_table.add_column("Indicador", style="cyan")
+        summary_table.add_column("Valor", style="white")
+        summary_table.add_row("Orcamento Total", format_currency(s1, "BRL"))
+        summary_table.add_row("Gasto no Mes", format_currency(s2, "BRL"))
+        summary_table.add_row("Restante", format_currency(s3, "BRL"))
+        summary_table.add_row("Consumido", f"{data['overall_percent']:.1f}%")
+        console.print(summary_table)
+        console.print()
+
+        # Barra de progresso geral
+        bar_width = 40
+        filled = int(bar_width * data["overall_percent"] / 100)
+        bar = "█" * filled + "░" * (bar_width - filled)
+        bar_color = "red" if data["overall_percent"] >= 100 else "yellow" if data["overall_percent"] >= 80 else "green"
+        console.print(f"  [{bar_color}]{bar}[/] {data['overall_percent']:.1f}%")
+        console.print()
+
+        # Categorias detalhadas
+        if data["categories"]:
+            detail_table = Table(box=box.ROUNDED, title="Por Categoria")
+            detail_table.add_column("ID", style="dim", justify="right")
+            detail_table.add_column("Categoria", style="cyan")
+            detail_table.add_column("Limite", style="white", justify="right")
+            detail_table.add_column("Gasto", style="white", justify="right")
+            detail_table.add_column("%", style="yellow", justify="right")
+            detail_table.add_column("Status", style="white")
+
+            for c in data["categories"]:
+                status_disp = {
+                    "exceeded": "🔴 Estourado",
+                    "warning": "🟡 Atencao",
+                    "attention": "🟠 Metade+",
+                    "ok": "🟢 Ok",
+                    "no_budget": "⚪ Sem limite",
+                }.get(c["status"], c["status"])
+
+                limit_disp = c["budget_display"]
+                detail_table.add_row(
+                    str(c["id"]),
+                    f"{c['icon']} {c['name']}",
+                    limit_disp,
+                    format_currency(c["spent"], "BRL"),
+                    f"{c['percent']:.1f}%",
+                    status_disp,
+                )
+
+            console.print(detail_table)
+
+    except Exception as e:
+        console.print(f"[red]Erro ao gerar orcamento: {e}[/]")
+
+
+# ====== COMMAND: finance account ======
+@finance.command(name="account")
+@click.argument("action", type=click.Choice(["list", "create", "update", "delete"]), default="list")
+@click.option("--name", "-n", default=None, help="Nome da conta")
+@click.option("--type", "-t", "acc_type", default="checking", help="Tipo: checking, savings, credit_card, investment, cash")
+@click.option("--balance", "-b", type=float, default=0.0, help="Saldo inicial")
+@click.option("--id", "-i", "acc_id", type=int, default=None, help="ID da conta (para update/delete)")
+@click.option("--active/--inactive", default=True, help="Ativar/desativar conta")
+def account_cmd(action, name, acc_type, balance, acc_id, active):
+    """🏦 Gerenciar contas financeiras.
+
+    Exemplos:
+        stonks finance account list              # Lista contas ativas
+        stonks finance account create -n "Poupanca" -t savings -b 1000
+        stonks finance account update -i 3 -n "Novo Nome"
+        stonks finance account delete -i 3
+    """
+    try:
+        if action == "list":
+            accounts = personal_finance_agent.list_accounts(active_only=True)
+            if not accounts:
+                console.print("[yellow]Nenhuma conta encontrada.[/]")
+                console.print("Use 'stonks init' para criar contas padrao ou 'stonks finance account create' para criar manualmente.")
+                return
+
+            table = Table(box=box.ROUNDED, title="🏦 Contas")
+            table.add_column("ID", style="dim", justify="right")
+            table.add_column("Conta", style="cyan")
+            table.add_column("Tipo", style="white")
+            table.add_column("Saldo", style="white", justify="right")
+            for a in accounts:
+                type_names = {
+                    "checking": "Corrente", "savings": "Poupanca",
+                    "credit_card": "Credito", "investment": "Investimento",
+                    "cash": "Dinheiro", "other": "Outro",
+                }
+                table.add_row(
+                    str(a["id"]),
+                    f"{a['icon']} {a['name']}",
+                    type_names.get(a["account_type"], a["account_type"]),
+                    format_currency(a["balance"], a.get("currency", "BRL")),
+                )
+            console.print(table)
+
+        elif action == "create":
+            if not name:
+                console.print("[red]Nome da conta e obrigatorio (--name).[/]")
+                return
+            acc = personal_finance_agent.create_account(
+                name=name, account_type=acc_type, balance=balance,
+            )
+            console.print(f"[green]Conta criada: {acc['icon']} {acc['name']} — R$ {acc['balance']:,.2f}[/]")
+
+        elif action == "update":
+            if not acc_id:
+                console.print("[red]ID da conta e obrigatorio (--id).[/]")
+                return
+            kwargs = {}
+            if name:
+                kwargs["name"] = name
+            if acc_type:
+                kwargs["account_type"] = acc_type
+            kwargs["is_active"] = active
+            acc = personal_finance_agent.update_account(acc_id, **kwargs)
+            if acc:
+                console.print(f"[green]Conta atualizada: {acc['icon']} {acc['name']}[/]")
+            else:
+                console.print(f"[red]Conta {acc_id} nao encontrada.[/]")
+
+        elif action == "delete":
+            if not acc_id:
+                console.print("[red]ID da conta e obrigatorio (--id).[/]")
+                return
+            success = personal_finance_agent.delete_account(acc_id)
+            if success:
+                console.print(f"[green]Conta {acc_id} removida/desativada.[/]")
+            else:
+                console.print(f"[red]Conta {acc_id} nao encontrada.[/]")
+
+    except Exception as e:
+        console.print(f"[red]Erro: {e}[/]")
+
+
 # ====== COMMAND: goals ======
 @click.group()
 def goals():

@@ -7,6 +7,7 @@ do usuário, credenciais e configurações do sistema.
 
 import copy
 import os
+import sys
 import yaml
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -15,8 +16,21 @@ from typing import Any, Dict, Optional
 # Diretório base do projeto
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+
+
+def _resolve_data_dir() -> Path:
+    """Diretório de dados: STONKS_DATA_DIR, %APPDATA%/StonksAI no executável, ou data/ no dev."""
+    override = os.environ.get("STONKS_DATA_DIR")
+    if override:
+        return Path(override)
+    if getattr(sys, "frozen", False):
+        # Executável (PyInstaller): a pasta do programa pode não ter permissão de escrita
+        return Path(os.environ.get("APPDATA") or Path.home()) / "StonksAI"
+    return BASE_DIR / "data"
+
+
 # Diretório de dados (banco SQLite + config)
-DATA_DIR = BASE_DIR / "data"
+DATA_DIR = _resolve_data_dir()
 
 # Caminhos padrão
 DEFAULT_CONFIG_PATH = DATA_DIR / "config.yaml"
@@ -48,6 +62,9 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "temperature": 0.3,
         "max_tokens": 2048,
         "timeout_seconds": 120,
+        # Ollama: contexto menor = menos RAM; keep_alive curto libera a memória mais cedo
+        "num_ctx": 4096,
+        "keep_alive": "2m",
         # Fallback para IA local quando API remota falha
         "fallback_provider": "ollama",
     },

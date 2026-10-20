@@ -493,5 +493,35 @@ webapp/
 
 ---
 
+## ADR 015: App Desktop (pywebview + FastAPI) no lugar do Streamlit
+
+**Status:** ✅ Aceito — todas as telas migradas para `desktop/`; o Streamlit (`webapp/`) continua disponível até ser removido
+**Data:** 2026-10
+**Tipo:** 🏗️ Refatoração
+
+### Contexto
+O ADR 008 já registrava os limites do Streamlit: recarrega a página inteira a cada interação, é difícil de personalizar visualmente e exige `streamlit run`. O objetivo agora é distribuir o Stonks AI como um executável para Windows, com uma interface própria.
+
+### Decisão
+Uma API local **FastAPI** sobre os agentes existentes, um frontend em **HTML/CSS/JS** sem etapa de build e uma janela nativa **pywebview** (WebView2), empacotados com **PyInstaller** (`--onedir`). No executável, os dados vão para `%APPDATA%\StonksAI`.
+
+### Alternativas Consideradas
+| Alternativa | Prós | Contras |
+|---|---|---|
+| **pywebview + FastAPI + HTML/JS** | Controle visual total, agentes reaproveitados sem mudança, API reutilizável (ex.: celular) | Duas linguagens (Python + JS) |
+| **NiceGUI (native=True)** | Tudo em Python | Teto de design menor, preso aos componentes da biblioteca |
+| **Flet** | Tudo em Python, visual moderno | Gráficos mais limitados, ecossistema menor |
+| **Tauri / Electron + Python sidecar** | Instalador menor (Tauri) | Rust/Node na cadeia de build, mais complexidade |
+
+### Consequências
+- ✅ Visual e interação sem as amarras do Streamlit
+- ✅ CLI e agentes continuam iguais; a API é só uma camada fina
+- ✅ Dados do usuário fora da pasta do programa (instalável em Program Files)
+- ❌ Executável grande (~260 MB, principalmente pandas, numpy e pymupdf)
+- ❌ Executáveis PyInstaller podem gerar alertas de antivírus; requer instalador e, idealmente, assinatura
+- ❌ A API local precisa de um token para não ficar acessível a outros processos da máquina
+
+---
+
 > Este documento deve ser atualizado sempre que uma nova decisão arquitetural for tomada.  
 > Consulte também: [`MEMORY.md`](../MEMORY.md) | [`licoes.md`](../licoes.md)

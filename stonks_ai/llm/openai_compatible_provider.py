@@ -130,14 +130,23 @@ class OpenAICompatibleProvider(BaseLLMProvider):
         system_prompt: Optional[str] = None,
     ) -> AsyncGenerator[str, None]:
         """Streaming via SSE (Server-Sent Events)."""
-        messages = []
+        messages = [{"role": "user", "content": prompt}]
+        async for chunk in self.generate_stream_from_messages(messages, system_prompt):
+            yield chunk
+
+    async def generate_stream_from_messages(
+        self,
+        messages: List[Dict[str, str]],
+        system_prompt: Optional[str] = None,
+    ) -> AsyncGenerator[str, None]:
+        """Streaming via SSE a partir de uma conversa."""
+        full_messages = list(messages)
         if system_prompt:
-            messages.append({"role": "system", "content": system_prompt})
-        messages.append({"role": "user", "content": prompt})
+            full_messages.insert(0, {"role": "system", "content": system_prompt})
 
         payload = {
             "model": self.model,
-            "messages": messages,
+            "messages": full_messages,
             "temperature": self.temperature,
             "max_tokens": self.max_tokens,
             "stream": True,

@@ -10,7 +10,7 @@ def page_alerts(financial_agent, personal_finance_agent):
     with col_ref:
         show_all = st.checkbox("Mostrar já dispensados", value=False)
     with col_check:
-        if st.button("🔄 Verificar Novos Alertas", use_container_width=True):
+        if st.button("🔄 Verificar Novos Alertas", width='stretch'):
             with st.spinner("Verificando..."):
                 try:
                     new = personal_finance_agent.check_alerts()

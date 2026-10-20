@@ -48,7 +48,7 @@ def page_compare(financial_agent, personal_finance_agent):
                         "DY": format_percent(f.dividend_yield) if f and f.dividend_yield else "N/A",
                     })
 
-                st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+                st.dataframe(pd.DataFrame(rows), width='stretch', hide_index=True)
 
                 # Gráfico comparativo
                 st.markdown("### 📈 Performance Relativa (Base 100)")
@@ -66,7 +66,7 @@ def page_compare(financial_agent, personal_finance_agent):
 
                 if datasets:
                     fig = build_comparison_chart(datasets)
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width='stretch')
 
                 analysis = result.get("analysis", "")
                 if analysis and "não disponível" not in analysis.lower():

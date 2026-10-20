@@ -70,7 +70,7 @@ def render_sidebar():
                 f"{icon}  {label}",
                 key=f"nav_{page_id}",
                 help=f"Abrir {label}",
-                use_container_width=True,
+                width='stretch',
             ):
                 st.session_state["page"] = page_id
                 st.session_state["quick_ticker"] = ""

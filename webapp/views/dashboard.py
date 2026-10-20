@@ -2,10 +2,14 @@
 
 import streamlit as st
 
-from webapp.components.metrics import render_metric
+from stonks_ai.utils.formatters import format_currency
+
+from webapp.components.metrics import delta_vs_previous, previous_month_summary, render_metric
 
 
 def page_dashboard(financial_agent, personal_finance_agent):
+    from datetime import datetime as dt
+
     st.markdown('<div class="main-header">🚀 Stonks AI</div>', unsafe_allow_html=True)
     st.markdown(
         '<div class="sub-header">'
@@ -14,6 +18,7 @@ def page_dashboard(financial_agent, personal_finance_agent):
         unsafe_allow_html=True,
     )
 
+    # ── Status do sistema ──
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         render_metric("Ações B3", "~400+", None)
@@ -25,6 +30,34 @@ def page_dashboard(financial_agent, personal_finance_agent):
         llm_status = "Online" if financial_agent.check_llm_available() else "Offline"
         render_metric("IA Local", llm_status, None)
 
+    # ── Resumo financeiro do mês atual ──
+    st.markdown("---")
+    st.markdown("### 💰 Resumo Financeiro do Mês")
+    try:
+        now = dt.now()
+        dash_data = personal_finance_agent.get_dashboard(now.year, now.month)
+        summary = dash_data["summary"]
+        prev = previous_month_summary(now.year, now.month)
+
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("💰 Receitas", format_currency(summary['total_income']),
+                  delta=delta_vs_previous(summary['total_income'], prev, "total_income"))
+        m2.metric("💸 Despesas", format_currency(summary['total_expense']),
+                  delta=delta_vs_previous(summary['total_expense'], prev, "total_expense"),
+                  delta_color="inverse")
+        m3.metric("📊 Saldo", format_currency(summary['balance']),
+                  delta=delta_vs_previous(summary['balance'], prev, "balance"))
+        m4.metric("🔄 Transações", summary['transaction_count'])
+
+        if summary['transaction_count'] == 0:
+            st.info("👋 Nenhuma transação este mês. Vá para **Finanças Pessoais > Importar Extrato** para começar!")
+
+    except Exception:
+        st.caption("📊 Dados financeiros indisponíveis — inicialize com `stonks init`")
+
+    st.markdown("---")
+
+    # ── Atalhos rápidos ──
     st.markdown("### 🔥 Comece rápido")
     col1, col2, col3 = st.columns(3)
 

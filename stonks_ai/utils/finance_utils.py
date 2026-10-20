@@ -97,6 +97,29 @@ def _empty_summary() -> Dict[str, Any]:
     }
 
 
+def get_multi_month_summary(months: int = 6) -> List[Dict[str, Any]]:
+    """
+    Obtém resumo financeiro dos últimos N meses para gráficos comparativos.
+
+    Args:
+        months: Número de meses para analisar (padrão: 6).
+
+    Returns:
+        Lista de resumos mensais, cada um com as mesmas chaves de get_month_summary.
+    """
+    now = datetime.now(timezone.utc)
+    summaries = []
+    for i in range(months - 1, -1, -1):
+        # Calcula ano/mês para i meses atrás
+        target_month = now.month - i
+        target_year = now.year
+        while target_month <= 0:
+            target_month += 12
+            target_year -= 1
+        summaries.append(get_month_summary(target_year, target_month))
+    return summaries
+
+
 def get_balance_history(days: int = 90) -> List[Dict[str, Any]]:
     """
     Gera histórico de saldo acumulado ao longo do tempo.
@@ -431,6 +454,117 @@ def save_alerts(alerts: List[Alert]) -> int:
         except Exception:
             continue
     return saved
+
+
+# ── Orçamento ──────────────────────────────────────────────────────────────
+
+def get_budget_overview(year: int, month: int) -> Dict[str, Any]:
+    """
+    Obtém visão geral do orçamento: limites vs gastos por categoria.
+
+    Returns:
+        Dict com: categories (lista com budget, spent, percent, status),
+                  total_budget, total_spent, overall_percent
+    """
+    try:
+        with db.session() as session:
+            categories_raw = session.query(Category).order_by(Category.sort_order).all()
+            categories = [
+                {
+                    "id": c.id,
+                    "name": c.name,
+                    "icon": c.icon,
+                    "color": c.color,
+                    "budget_limit": c.budget_limit,  # centavos
+                    "budget_period": c.budget_period,
+                }
+                for c in categories_raw
+            ]
+    except Exception:
+        return _empty_budget_overview()
+
+    # Gastos do mês atual por categoria
+    summary = get_month_summary(year, month)
+    cat_spending = {c["name"]: c["amount"] for c in summary["top_categories"]}
+
+    total_budget = 0
+    total_spent = 0
+    budget_categories = []
+
+    for cat in categories:
+        budget = cat["budget_limit"]
+        if budget is None or budget <= 0:
+            # Categoria sem orçamento definido — inclui mas sem limite
+            spent = cat_spending.get(cat["name"], 0)
+            budget_categories.append({
+                "id": cat["id"],
+                "name": cat["name"],
+                "icon": cat["icon"],
+                "color": cat.get("color", "#6C757D"),
+                "budget_limit": None,
+                "budget_display": "-",
+                "spent": round(spent, 2),
+                "remaining": None,
+                "percent": 0,
+                "status": "no_budget",
+            })
+            total_spent += spent
+            continue
+
+        budget_reais = budget / 100.0
+        spent = cat_spending.get(cat["name"], 0)
+        percent = round((spent / budget_reais) * 100, 1) if budget_reais > 0 else 0
+        remaining = budget_reais - spent
+
+        if percent >= 100:
+            status = "exceeded"
+        elif percent >= 80:
+            status = "warning"
+        elif percent >= 50:
+            status = "attention"
+        else:
+            status = "ok"
+
+        budget_categories.append({
+            "id": cat["id"],
+            "name": cat["name"],
+            "icon": cat["icon"],
+            "color": cat.get("color", "#6C757D"),
+            "budget_limit": budget_reais,
+            "budget_display": f"R$ {budget_reais:,.2f}",
+            "spent": round(spent, 2),
+            "remaining": round(remaining, 2),
+            "percent": min(percent, 100),
+            "status": status,
+        })
+
+        total_budget += budget_reais
+        total_spent += spent
+
+    overall_percent = round((total_spent / total_budget) * 100, 1) if total_budget > 0 else 0
+    overall_status = "exceeded" if overall_percent >= 100 else "warning" if overall_percent >= 80 else "ok"
+
+    return {
+        "categories": budget_categories,
+        "total_budget": round(total_budget, 2),
+        "total_spent": round(total_spent, 2),
+        "overall_percent": min(overall_percent, 100),
+        "overall_status": overall_status,
+        "year": year,
+        "month": month,
+    }
+
+
+def _empty_budget_overview() -> Dict[str, Any]:
+    return {
+        "categories": [],
+        "total_budget": 0,
+        "total_spent": 0,
+        "overall_percent": 0,
+        "overall_status": "ok",
+        "year": datetime.now(timezone.utc).year,
+        "month": datetime.now(timezone.utc).month,
+    }
 
 
 # ── Metas Financeiras ───────────────────────────────────────────────────

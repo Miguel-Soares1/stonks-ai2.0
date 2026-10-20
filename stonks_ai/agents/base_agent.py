@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional
 from stonks_ai.database import DatabaseError, db
 from stonks_ai.llm.base import BaseLLMProvider, LLMError
 from stonks_ai.llm.factory import create_llm_client
-from stonks_ai.llm.prompts import FINANCIAL_CHAT_SYSTEM_PROMPT
+from stonks_ai.llm.prompts import build_chat_system_prompt, chat_query_from_messages
 
 
 class AgentError(Exception):
@@ -79,7 +79,7 @@ class BaseAgent(ABC):
 
             response = self.llm.generate_from_messages(
                 messages=messages,
-                system_prompt=FINANCIAL_CHAT_SYSTEM_PROMPT,
+                system_prompt=build_chat_system_prompt(chat_query_from_messages(messages)),
             )
             return response
         except LLMError as e:

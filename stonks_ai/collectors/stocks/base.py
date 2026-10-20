@@ -62,6 +62,19 @@ class StockFundamentals:
         return asdict(self)
 
 
+def dividend_yield_from_info(info: Dict[str, Any]) -> Optional[float]:
+    """Dividend yield dos últimos 12 meses como fração (0.06 = 6%).
+
+    O yfinance devolve 'dividendYield' em percentual (0.31 = 0,31%), enquanto
+    'trailingAnnualDividendYield' vem em fração, como ROE e margens.
+    """
+    trailing = info.get("trailingAnnualDividendYield")
+    if trailing is not None:
+        return trailing
+    dy = info.get("dividendYield")
+    return dy / 100 if dy is not None else None
+
+
 class StockCollectorError(Exception):
     """Erro base para coletores de dados de ações."""
     pass

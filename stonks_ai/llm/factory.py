@@ -159,6 +159,8 @@ def _create_provider(
                 temperature=temperature,
                 max_tokens=max_tokens,
                 timeout=timeout,
+                num_ctx=config.get("llm", "num_ctx", default=4096),
+                keep_alive=config.get("llm", "keep_alive", default="2m"),
             )
 
         elif provider_type == "deepseek":
@@ -222,6 +224,8 @@ def _create_fallback(config: Config, fallback_type: str) -> Optional[BaseLLMProv
                 temperature=config.get("llm", "temperature", default=0.3),
                 max_tokens=config.get("llm", "max_tokens", default=2048),
                 timeout=config.get("llm", "timeout_seconds", default=120),
+                num_ctx=config.get("llm", "num_ctx", default=4096),
+                keep_alive=config.get("llm", "keep_alive", default="2m"),
             )
         except Exception as e:
             logger.warning("Fallback Ollama indisponível: %s", e)
@@ -293,6 +297,28 @@ class FallbackChain(BaseLLMProvider):
                 self._using_fallback = True
 
         async for chunk in self._fallback.generate_stream(prompt, system_prompt):
+            yield chunk
+
+    async def generate_stream_from_messages(
+        self,
+        messages: List[Dict[str, str]],
+        system_prompt: Optional[str] = None,
+    ) -> Any:
+        if not self._using_fallback:
+            try:
+                async for chunk in self._primary.generate_stream_from_messages(
+                    messages, system_prompt
+                ):
+                    yield chunk
+                return
+            except (LLMError, Exception) as e:
+                logger.warning(
+                    "Streaming no primário (%s) falhou: %s. A usar fallback (%s).",
+                    self._primary.provider_name, e, self._fallback.provider_name,
+                )
+                self._using_fallback = True
+
+        async for chunk in self._fallback.generate_stream_from_messages(messages, system_prompt):
             yield chunk
 
     def is_available(self) -> bool:

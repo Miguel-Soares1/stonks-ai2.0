@@ -18,7 +18,7 @@ from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 from stonks_ai.config import config
 
 # Schema version for migration tracking
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 class Base(DeclarativeBase):

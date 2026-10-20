@@ -51,6 +51,12 @@ dependencies = [
 stonks = "stonks_ai.main:cli"
 
 [project.optional-dependencies]
+desktop = [
+    "fastapi>=0.110",
+    "uvicorn>=0.29",
+    "pywebview>=5.0",
+    "pyinstaller>=6.0",
+]
 dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
@@ -63,6 +69,9 @@ dev = [
 
 [tool.setuptools.packages.find]
 include = ["stonks_ai*"]
+
+[tool.setuptools.package-data]
+stonks_ai = ["knowledge/*.md"]
 
 [tool.black]
 line-length = 100

@@ -65,7 +65,7 @@ class FinanceImporter(ABC):
 
                 # Cria transação
                 amount = abs(raw["amount"])
-                tx_type = "income" if raw.get("type") == "income" or raw["amount"] > 0 else "expense"
+                tx_type = raw.get("type") or ("income" if raw["amount"] > 0 else "expense")
 
                 transaction = Transaction(
                     description=raw["description"][:500],
@@ -111,7 +111,7 @@ class FinanceImporter(ABC):
         try:
             with db.session() as session:
                 amount = abs(raw["amount"])
-                tx_type = "income" if raw.get("type") == "income" or raw["amount"] > 0 else "expense"
+                tx_type = raw.get("type") or ("income" if raw["amount"] > 0 else "expense")
                 date = self._parse_date(raw.get("date"))
                 date_str = date.strftime("%Y-%m-%d")
 

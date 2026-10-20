@@ -86,6 +86,18 @@ class BaseLLMProvider(ABC):
         result = self.generate(prompt, system_prompt=system_prompt)
         yield result
 
+    async def generate_stream_from_messages(
+        self,
+        messages: List[Dict[str, str]],
+        system_prompt: Optional[str] = None,
+    ) -> AsyncGenerator[str, None]:
+        """
+        Streaming a partir de uma conversa (histórico + nova mensagem).
+
+        O fallback padrão gera tudo de uma vez como um único chunk.
+        """
+        yield self.generate_from_messages(messages, system_prompt=system_prompt)
+
     @property
     def provider_name(self) -> str:
         """Nome descritivo do provider."""
