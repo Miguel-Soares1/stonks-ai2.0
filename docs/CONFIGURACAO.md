@@ -2,13 +2,15 @@
 
 ## 📁 Localização do Arquivo
 
-O `config.yaml` é criado automaticamente ao executar `stonks init` em:
+O `config.yaml` é criado automaticamente (pelo `stonks init` ou ao abrir o app desktop) na pasta de dados:
 
-| Sistema | Caminho |
-|---------|---------|
-| Windows | `C:\Users\SEU_USUARIO\.stonks_ai\config.yaml` |
-| Linux | `~/.stonks_ai/config.yaml` |
-| macOS | `~/.stonks_ai/config.yaml` |
+| Modo | Pasta |
+|------|-------|
+| Desenvolvimento (rodando do código) | `data/` do projeto |
+| App desktop instalado | `%APPDATA%\StonksAI` |
+| Qualquer modo | o que estiver em `STONKS_DATA_DIR`, se definido |
+
+Na mesma pasta ficam o banco (`stonks_ai.db`) e os backups (`backups/`).
 
 ---
 
@@ -71,6 +73,26 @@ ui:
 |-------|------|--------|-----------|
 | `ui.language` | string | `pt-BR` | Idioma da interface |
 | `ui.theme` | string | `dark` | Tema visual |
+
+### LLM na nuvem (opcional)
+
+| Chave | Tipo | Padrão | Descrição |
+|-------|------|--------|-----------|
+| `llm.provider` | string | `ollama` | `ollama`, `deepseek`, `openai` ou `openai_compatible` |
+| `llm.api_key` | string | `""` | `@keyring` = chave guardada no Gerenciador de Credenciais do Windows (padrão do app desktop). Também aceita `${NOME_DA_VARIAVEL}` para ler de uma variável de ambiente |
+| `llm.base_url` | string | `""` | URL da API, para `openai_compatible` |
+| `llm.fallback_provider` | string | `ollama` | IA usada se a da nuvem falhar (`""` desliga) |
+
+> Ao salvar a chave pelo app desktop (Ajustes), ela vai para o cofre do Windows e o `config.yaml` guarda só `@keyring`. Chaves antigas em texto puro são movidas para o cofre ao abrir o app.
+
+### UI e segurança do app desktop
+
+| Chave | Tipo | Padrão | Descrição |
+|-------|------|--------|-----------|
+| `ui.theme` | string | `system` | `light`, `dark` ou `system` (segue o Windows) |
+| `ui.hide_values` | bool | `false` | Ocultar valores (`R$ ••••`); muda pelo botão de olho no topo |
+| `security.pin_hash` | string | `""` | Hash scrypt do PIN. Vazio = sem bloqueio. **Não edite à mão**, exceto para apagar se esquecer o PIN |
+| `security.lock_after_minutes` | int | `10` | Bloquear de novo após N minutos sem uso: `0` (só ao abrir), `5`, `10`, `30` ou `60` |
 
 ### Finance (Finanças Pessoais)
 

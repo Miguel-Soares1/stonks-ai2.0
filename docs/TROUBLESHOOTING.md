@@ -60,7 +60,29 @@ stonks config --set llm.model llama3.2:1b
 ```
 
 ### O banco de dados enche?
-O SQLite armazena histórico de consultas. Você pode limpar manualmente excluindo o arquivo `~/.stonks_ai/data/stonks_ai.db`.
+O SQLite armazena histórico de consultas. Você pode limpar manualmente excluindo o arquivo `stonks_ai.db` da pasta de dados. **Faça um backup antes** (Ajustes → Backup).
+
+### Esqueci o PIN do app desktop
+O PIN protege o app aberto, mas não criptografa os dados, então nada se perde:
+1. Feche o app.
+2. Abra o `config.yaml` da pasta de dados (`%APPDATA%\StonksAI` no app instalado).
+3. Apague o valor de `pin_hash` (deixe `pin_hash: ''`) e salve.
+4. Abra o app e defina um PIN novo em Ajustes, se quiser.
+
+### "Muitas tentativas. Aguarde N s."
+Depois de 3 PINs errados seguidos, cada erro novo aumenta a espera (5 s, 10 s, 20 s... até 5 minutos). Espere o tempo indicado e digite o PIN certo.
+
+### Restaurei um backup errado
+Antes de cada restauração, o app salva uma cópia de como os dados estavam, com o tipo **"Antes de restaurar"** na lista de Ajustes → Backup. Restaure essa cópia para voltar.
+
+### A chave da IA sumiu depois de atualizar
+Ela foi movida para o Gerenciador de Credenciais do Windows (entrada `StonksAI`), e o `config.yaml` passa a mostrar `api_key: '@keyring'`. Isso é esperado. Se você trocar de usuário do Windows ou de computador, a chave não vai junto: cole de novo em Ajustes.
+
+### Uma transação sempre cai na categoria errada
+Edite a transação e escolha a categoria certa. O app aprende o estabelecimento, corrige as transações iguais e acerta nas próximas importações. Para desfazer uma regra, vá em Orçamento → Regras aprendidas.
+
+### Uma transação recorrente não apareceu
+As ocorrências são criadas quando a data chega, ao abrir o app ou ao carregar o Início. Se você excluiu uma ocorrência, ela não é recriada. Para parar a série, edite qualquer transação dela e escolha "Não repete".
 
 ---
 

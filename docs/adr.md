@@ -495,7 +495,7 @@ webapp/
 
 ## ADR 015: App Desktop (pywebview + FastAPI) no lugar do Streamlit
 
-**Status:** ✅ Aceito — todas as telas migradas para `desktop/`; o Streamlit (`webapp/`) continua disponível até ser removido
+**Status:** ✅ Aceito — todas as telas migradas para `desktop/`; o Streamlit (`webapp/`) continua disponível até ser removido. A remoção está em aberto: o dashboard publicado pela landing page (`site/`) ainda depende dele.
 **Data:** 2026-10
 **Tipo:** 🏗️ Refatoração
 
@@ -520,6 +520,146 @@ Uma API local **FastAPI** sobre os agentes existentes, um frontend em **HTML/CSS
 - ❌ Executável grande (~260 MB, principalmente pandas, numpy e pymupdf)
 - ❌ Executáveis PyInstaller podem gerar alertas de antivírus; requer instalador e, idealmente, assinatura
 - ❌ A API local precisa de um token para não ficar acessível a outros processos da máquina
+
+---
+
+## ADR 016: Segredos e acesso local — chave da IA no cofre do sistema e bloqueio por PIN
+
+**Status:** ✅ Aceito
+**Data:** 2026-10
+**Tipo:** 🔒 Segurança
+
+### Contexto
+A chave de uma IA na nuvem era salva em texto puro no `config.yaml` (Lição #5 de junho já apontava o risco). E o app desktop abria direto nas finanças: num computador compartilhado, qualquer pessoa via tudo.
+
+### Decisão
+- **Chave da IA:** vai para o cofre do sistema via `keyring` (Gerenciador de Credenciais no Windows). O `config.yaml` guarda só o marcador `@keyring`. Referências `${VARIAVEL}` continuam no config, porque não são segredo. Chaves antigas em texto puro são migradas ao abrir o app (`stonks_ai/credentials.py`). Sem cofre disponível (Linux sem serviço de chaves, Streamlit Cloud), volta a salvar no config.
+- **PIN opcional:** hash scrypt com sal no config. Com PIN, o **middleware da API** responde `423` a qualquer rota de dados até o desbloqueio; só `/api/boot`, `/api/status` e `/api/lock/*` ficam livres. O desbloqueio vive só na memória (reabrir o app pede o PIN) e expira após um tempo sem uso (5 min a 1 h, ou só ao abrir). Erros seguidos aumentam a espera (5 s, 10 s, 20 s... até 5 min). Código em `desktop/lock.py`.
+
+### Alternativas Consideradas
+| Alternativa | Prós | Contras |
+|---|---|---|
+| **keyring + PIN na API** | Usa o cofre do SO; o bloqueio vale para qualquer cliente da API, não só para a tela | PIN não criptografa o banco |
+| Criptografar o `config.yaml` | Tudo num arquivo | Onde guardar a chave de criptografia? Volta ao mesmo problema |
+| Criptografar o banco (SQLCipher) | Protege os arquivos em disco | Dependência nativa no build; PIN esquecido = dados perdidos |
+| Windows Hello | Biometria, sem PIN para lembrar | API do Windows via pywebview é complexa; fica para depois |
+| Bloqueio só no frontend | Simples | Qualquer programa com o token leria a API |
+
+### Consequências
+- ✅ Nenhum segredo da IA em texto puro no disco
+- ✅ O bloqueio é aplicado no servidor, não é só uma tela por cima
+- ❌ O PIN protege o app aberto, não os arquivos: quem entra na conta do Windows lê a pasta de dados
+- ❌ PIN esquecido exige apagar `security.pin_hash` no `config.yaml` com o app fechado (documentado no TROUBLESHOOTING)
+
+---
+
+## ADR 017: Backup pela API de backup do SQLite
+
+**Status:** ✅ Aceito
+**Data:** 2026-10
+**Tipo:** 🗄️ Dados
+
+### Contexto
+Todos os dados ficam num único arquivo SQLite. Sem backup, um arquivo corrompido ou uma importação errada não tinham volta.
+
+### Decisão
+`stonks_ai/backup.py` usa `sqlite3.Connection.backup()`: copia o banco com segurança mesmo com o app aberto em modo WAL. As cópias ficam em `DATA_DIR/backups/stonks-AAAAMMDD-HHMMSS[-motivo].db`. Há um backup automático por semana (guarda os 8 últimos), backup manual e restauração da lista ou de um arquivo `.db` escolhido. Antes de restaurar, o app salva uma cópia do estado atual (`-antes`). O arquivo restaurado precisa passar no `PRAGMA integrity_check` e ter as tabelas do Stonks AI; nomes de backup são validados por regex (sem `../`).
+
+### Alternativas Consideradas
+| Alternativa | Prós | Contras |
+|---|---|---|
+| **API de backup do SQLite** | Consistente com WAL e app aberto; sem dependência | Cópia inteira a cada vez |
+| Copiar o arquivo `.db` | Trivial | Pode copiar no meio de uma escrita; ignora o `-wal` |
+| Exportar CSV/JSON | Legível | Restaurar exige reimportar e recriar relações |
+| Sincronizar com a nuvem | Protege contra perder o PC | Dados saem da máquina (contra o ADR 001) |
+
+### Consequências
+- ✅ Dá para desfazer importações e restaurações
+- ✅ O botão "Abrir pasta" facilita copiar os backups para um pendrive ou nuvem por conta própria
+- ❌ Os backups ficam na mesma máquina; perder o computador perde os backups
+
+---
+
+## ADR 018: Transações recorrentes criadas quando a data chega
+
+**Status:** ✅ Aceito
+**Data:** 2026-10
+**Tipo:** 💰 Finanças
+
+### Contexto
+O modelo `Transaction` já tinha `is_recurring`, `recurring_frequency` e `recurrence_id`, mas nenhuma tela os usava. Aluguel, salário e assinaturas precisavam ser lançados à mão todo mês.
+
+### Decisão
+Uma série é o grupo de transações com o mesmo `recurrence_id` (`stonks_ai/utils/recurrence.py`). A primeira define o dia de referência; a mais recente é o modelo das próximas (editar o valor da última vale daqui para frente). As ocorrências são **materializadas como transações normais quando a data chega** (ao abrir o app e ao carregar o Início), nunca adiantadas. A data da última ocorrência gerada fica em `user_preferences` (`recurrence_last:<id>`), para que uma ocorrência excluída não seja recriada. Recuperar o atraso tem teto de 60 ocorrências por série.
+
+### Alternativas Consideradas
+| Alternativa | Prós | Contras |
+|---|---|---|
+| **Materializar ao chegar a data** | Relatórios, orçamento e alertas funcionam sem mudança; dá para editar uma ocorrência | Precisa de um gatilho (abertura do app e Início) |
+| Gerar o ano inteiro de uma vez | Simples | Polui o mês com lançamentos futuros; editar a série vira pesadelo |
+| Calcular virtualmente nas consultas | Sem linhas extras no banco | Toda consulta (resumo, orçamento, alertas) teria que conhecer a regra |
+
+### Consequências
+- ✅ Nenhum código de relatório precisou mudar
+- ✅ "Recorrentes no próximo mês" no Início (janela de 31 dias, para uma conta mensal sempre aparecer)
+- ❌ Com o app fechado, as ocorrências só aparecem na próxima abertura
+
+---
+
+## ADR 019: Números do insight calculados pelo código; a IA só explica
+
+**Status:** ✅ Aceito
+**Data:** 2026-10
+**Tipo:** 🤖 IA
+
+### Contexto
+O design do Figma Make propunha um card "Você pode economizar R$ 540" escrito pela IA. A avaliação (`evals/`) mede justamente os "números sem lastro" que os modelos locais pequenos inventam, e um número errado na tela inicial de um app financeiro destrói a confiança.
+
+### Decisão
+`stonks_ai/utils/insights.py` calcula os insights em Python: (1) a categoria com o maior aumento em reais, comparando **os mesmos N dias** do mês anterior quando o mês está em andamento; (2) a categoria que vai estourar o limite do orçamento no ritmo atual. Variações abaixo de R$ 50 ou 20% são ignoradas. O card mostra o número calculado; o botão "Entender com a IA" abre o chat com uma pergunta pronta que já contém esses números.
+
+### Alternativas Consideradas
+| Alternativa | Prós | Contras |
+|---|---|---|
+| **Código calcula, IA explica** | Número sempre correto; funciona sem IA | Menos "mágico" |
+| IA gera o insight inteiro | Texto mais rico | Modelos de 1–3B inventam valores |
+| IA gera e o código confere os números | Texto rico e verificado | Complexo; resposta lenta na tela inicial |
+
+### Consequências
+- ✅ O Início abre rápido e sem depender do Ollama
+- ✅ Mesma regra vale para o futuro: números na tela vêm do banco, não do modelo
+- ❌ Só dois tipos de insight por enquanto
+
+---
+
+## ADR 020: Categorização por regras aprendidas antes da IA
+
+**Status:** ✅ Aceito
+**Data:** 2026-10
+**Tipo:** 💰 Finanças
+
+### Contexto
+A categorização tinha três problemas: palavras-chave casavam com pedaços de palavras ("DOC" pegava "DOCES"); o aprendizado por correção nunca era chamado pelo app e seu filtro descartava quase todas as palavras; e o importador tinha uma cópia separada da lógica. Além disso, `categorize_with_llm` existia mas **nenhum código a chamava**: a avaliação media a IA num caminho que o app não usa.
+
+### Decisão
+Um único `Categorizer` para importação, transação manual e edição, nesta ordem:
+1. **Regra aprendida:** ao corrigir a categoria de uma transação, o estabelecimento (`merchant_key`: "COMPRA CARTAO PANVEL FARMACIAS LJ 33" vira "PANVEL FARMACIAS") passa a ir sempre para a categoria escolhida. Transações do mesmo estabelecimento que estavam na mesma categoria antiga são corrigidas junto. As regras ficam em `user_preferences` (`cat_rule:<estabelecimento>`) e podem ser apagadas em Orçamento.
+2. **Palavra-chave como palavra inteira**, sem acento e aceitando plural, ganhando a mais específica ("AMAZON PRIME" vence "POSTO").
+3. **"Outros".**
+
+A IA continua fora da importação.
+
+### Alternativas Consideradas
+| Alternativa | Prós | Contras |
+|---|---|---|
+| **Regras aprendidas + palavras-chave** | Instantâneo, local, previsível, melhora com o uso | Primeira vez de um estabelecimento novo cai em "Outros" |
+| IA para tudo que não casar | Acerta estabelecimentos novos | ~0,5 s por transação; extrato de 300 linhas trava a importação |
+| Adicionar as palavras da descrição às palavras-chave (aprendizado antigo) | Já existia | Palavras genéricas ("PAGAMENTO") contaminam a categoria inteira |
+
+### Consequências
+- ✅ Corrigir uma vez resolve todas as transações daquele estabelecimento, inclusive nas próximas importações
+- ✅ Cache compartilhado: uma regra aprendida vale na próxima importação sem reiniciar
+- ❌ A IA ainda não ajuda com estabelecimentos novos. Próximo passo possível: chamar a IA só para estabelecimentos sem regra, com cache por estabelecimento
 
 ---
 

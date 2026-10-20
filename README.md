@@ -27,9 +27,13 @@
 | 🤖 **Análise com IA Local** | Análise técnica e fundamentalista via Ollama (Llama 3, Mistral, Gemma) |
 | ⚖️ **Comparação de Ativos** | Compare múltiplos ativos lado a lado |
 | 👀 **Watchlist** | Gerencie sua lista de ativos monitorados |
-| 💰 **Finanças Pessoais** | Importe extratos de CSV, Excel e PDF; categorize despesas automaticamente |
-| 🎯 **Metas Financeiras** | Acompanhe objetivos de curto, médio e longo prazo |
-| 📊 **Interface Web** | Dashboard interativo com Streamlit + Plotly |
+| 💰 **Finanças Pessoais** | Importe extratos de CSV, Excel e PDF; categorização automática que **aprende quando você corrige** |
+| 🔁 **Transações Recorrentes** | Aluguel, salário e assinaturas lançados sozinhos quando a data chega |
+| 💡 **Insights do Mês** | Categoria que mais subiu e orçamento que vai estourar, calculados pelo código (a IA só explica) |
+| 🎯 **Metas e Orçamento** | Metas com prazo e limite mensal por categoria |
+| 🖥️ **App Desktop (Windows)** | Janela nativa com instalador, chat com IA em streaming, ocultar valores e bloqueio por PIN |
+| 💾 **Backup** | Cópia semanal automática e restauração em um clique |
+| 📊 **Interface Web** | Dashboard Streamlit + Plotly (sendo substituído pelo app desktop) |
 | 📁 **Histórico Persistente** | Todas as consultas salvas em banco SQLite local |
 | 🛡️ **Tratamento Estruturado de Erros** | Matriz de erros com 34 códigos e soluções documentadas |
 
@@ -86,9 +90,28 @@ Para a referência completa de todos os comandos e subcomandos, veja [`docs/COMA
 
 ---
 
+## 🖥️ App Desktop (Windows)
+
+A interface principal é um **app nativo para Windows**: uma janela pywebview com frontend HTML/JS sobre uma API local FastAPI, que reaproveita os mesmos agentes da CLI.
+
+```bash
+pip install -e ".[desktop]"
+python -m desktop.app
+```
+
+- **Início:** saldo nas contas, quanto entrou e saiu, ritmo de gastos, insight do mês, recorrentes, metas e watchlist
+- **Chat com a IA** em tela cheia ou num painel flutuante, com a resposta aparecendo enquanto é escrita
+- **Privacidade:** botão para ocultar valores (`R$ ••••`), bloqueio por PIN, chave da IA no Gerenciador de Credenciais do Windows
+- **Backup** semanal automático e restauração em Ajustes
+- Instalador em português, sem pedir administrador
+
+Detalhes de telas, segurança, build e API em [`desktop/README.md`](desktop/README.md).
+
+---
+
 ## 🌐 Interface Web
 
-Além da CLI, o Stonks AI oferece uma **interface web interativa** construída com **Streamlit** e **Plotly**:
+Além da CLI e do app desktop, o Stonks AI tem uma **interface web** construída com **Streamlit** e **Plotly**. Ela está sendo substituída pelo app desktop (ADR 015) e não recebe as funcionalidades novas:
 
 ```bash
 streamlit run webapp/app.py
@@ -153,11 +176,11 @@ O Stonks AI segue uma arquitetura **local-first** com padrão de **Agentes**:
                            │
               ┌────────────┼────────────┐
               │            │            │
-         ┌────▼────┐ ┌────▼────┐ ┌────▼────┐
-         │   CLI   │ │  Web    │ │  API    │
-         │ (Click  │ │(Stream- │ │(Interna)│
-         │ + Rich) │ │ lit)    │ │         │
-         └────┬────┘ └────┬────┘ └────┬────┘
+         ┌────▼────┐ ┌────▼────┐ ┌────▼──────┐
+         │   CLI   │ │  Web    │ │ Desktop   │
+         │ (Click  │ │(Stream- │ │(pywebview │
+         │ + Rich) │ │ lit)    │ │ + FastAPI)│
+         └────┬────┘ └────┬────┘ └────┬──────┘
               │            │            │
               └────────────┼────────────┘
                            │
@@ -173,10 +196,10 @@ O Stonks AI segue uma arquitetura **local-first** com padrão de **Agentes**:
         ┌──────────────────┼──────────────────┐
         │                  │                  │
   ┌─────▼──────┐  ┌───────▼───────┐  ┌───────▼───────┐
-  │ Collectors │  │  LLM (Ollama) │  │   Models      │
-  │ B3 / NYSE  │  │  Local LLM    │  │  SQLAlchemy   │
-  │ CSV/Excel/ │  │  llama3.2:3b  │  │  2.0 ORM      │
-  │   PDF      │  │               │  │               │
+  │ Collectors │  │ LLM (multi-   │  │   Models      │
+  │ B3 / NYSE  │  │ provider)     │  │  SQLAlchemy   │
+  │ CSV/Excel/ │  │ Ollama local  │  │  2.0 ORM      │
+  │   PDF      │  │ + nuvem opc.  │  │               │
   └────────────┘  └───────────────┘  └───────┬───────┘
                                              │
                                       ┌──────▼──────┐
@@ -187,7 +210,8 @@ O Stonks AI segue uma arquitetura **local-first** com padrão de **Agentes**:
 
 - **BaseAgent (ABC)** → [`FinancialAgent`](stonks_ai/agents/financial_agent.py) + [`PersonalFinanceAgent`](stonks_ai/agents/personal_finance_agent.py)
 - **Coletores modulares** para B3, NYSE/Nasdaq, e importação financeira (CSV, Excel, PDF)
-- **Cliente LLM** genérico para Ollama com sistema de prompts versionados
+- **LLM multi-provider** (Ollama local, DeepSeek, OpenAI, compatíveis) com fallback para o local e base de conhecimento nos prompts
+- **App desktop** com API local protegida por token por sessão, CSP e bloqueio opcional por PIN
 - **SQLite + SQLAlchemy 2.0** com WAL mode para performance
 - **Configuração centralizada** em [`data/config.yaml`](data/config.yaml)
 
@@ -197,10 +221,18 @@ O Stonks AI segue uma arquitetura **local-first** com padrão de **Agentes**:
 
 ```
 stonks-ai/
+├── desktop/                      # App desktop (ver desktop/README.md)
+│   ├── app.py, api.py, lock.py   # Janela, API local, bloqueio por PIN
+│   ├── routes/                   # finance, market, assistant, settings
+│   └── frontend/                 # HTML + CSS + JS (sem etapa de build)
+├── evals/                        # Avaliação dos modelos de IA locais
 ├── stonks_ai/                    # Código-fonte principal
 │   ├── main.py                   # CLI (Click + Rich)
 │   ├── config.py                 # Gerenciamento de configuração YAML
 │   ├── database.py               # SQLite + SQLAlchemy 2.0 (WAL mode)
+│   ├── credentials.py            # Chave da IA no cofre do sistema
+│   ├── backup.py                 # Backup e restauração do banco
+│   ├── knowledge/                # Base de conhecimento usada nos prompts
 │   ├── agents/                   # Agentes de IA (padrão ABC)
 │   │   ├── base_agent.py         # Classe abstrata base
 │   │   ├── financial_agent.py    # Agente de análise financeira
@@ -208,8 +240,9 @@ stonks-ai/
 │   ├── collectors/               # Coletores de dados
 │   │   ├── stocks/               # B3, NYSE/Nasdaq, Fundamentus
 │   │   └── finance/              # Importação CSV, Excel, PDF
-│   ├── llm/                      # Cliente Ollama + Prompts
-│   │   ├── client.py             # Cliente HTTP para Ollama
+│   ├── llm/                      # Providers de IA + prompts
+│   │   ├── factory.py            # Escolhe o provider e monta o fallback
+│   │   ├── ollama_provider.py, openai_compatible_provider.py, ...
 │   │   └── prompts.py            # Templates de prompt versionados
 │   ├── models/                   # Modelos ORM (SQLAlchemy)
 │   │   ├── stock_history.py
@@ -218,12 +251,15 @@ stonks-ai/
 │   │   ├── financial_goal.py
 │   │   ├── watchlist.py
 │   │   ├── alert.py
+│   │   ├── account.py
 │   │   └── user_preferences.py
 │   └── utils/                    # Utilitários
 │       ├── charts.py             # Gráficos ASCII (plotext)
 │       ├── formatters.py         # Formatadores de moeda/data
 │       ├── validators.py         # Validadores de ticker, valores
-│       └── finance_utils.py      # Cálculos financeiros
+│       ├── finance_utils.py      # Cálculos financeiros
+│       ├── recurrence.py         # Transações recorrentes
+│       └── insights.py           # Insights do mês calculados pelo código
 ├── webapp/                       # Interface web
 │   └── app.py                    # Streamlit + Plotly dashboard
 ├── tests/                        # Suíte de testes (pytest)
@@ -233,7 +269,10 @@ stonks-ai/
 │   ├── test_config.py
 │   ├── test_database.py
 │   ├── test_llm.py
-│   └── test_validators.py
+│   ├── test_validators.py
+│   ├── test_desktop_features.py  # Recorrentes, backup, cofre da chave
+│   ├── test_desktop_api.py       # Rotas novas da API desktop
+│   └── test_rules_insights_lock.py  # Categorização, insights, PIN
 └── docs/                         # Documentação completa
     ├── adr.md                    # Architecture Decision Records
     ├── API.md                    # Referência da API interna
@@ -259,6 +298,10 @@ stonks-ai/
 | [Ollama](https://ollama.com/) | — | Inferência LLM local |
 | [Streamlit](https://streamlit.io/) | 1.57+ | Dashboard web |
 | [Plotly](https://plotly.com/python/) | 6.0+ | Gráficos interativos |
+| [FastAPI](https://fastapi.tiangolo.com/) + [Uvicorn](https://www.uvicorn.org/) | 0.110+ / 0.29+ | API local do app desktop |
+| [pywebview](https://pywebview.flowrl.com/) | 5.0+ | Janela nativa (WebView2) |
+| [PyInstaller](https://pyinstaller.org/) + Inno Setup | 6.0+ / 6 | Executável e instalador |
+| [keyring](https://github.com/jaraco/keyring) | 24+ | Chave da IA no cofre do sistema |
 | [pydantic](https://docs.pydantic.dev/) | 2.0+ | Validação de dados |
 | [pytest](https://docs.pytest.org/) | 7.0+ | Testes automatizados |
 | [pytesseract](https://github.com/madmaze/pytesseract) | — | OCR para PDFs escaneados |
@@ -274,7 +317,9 @@ stonks-ai/
 | [`docs/CONFIGURACAO.md`](docs/CONFIGURACAO.md) | Todas as opções de configuração do YAML |
 | [`docs/EXEMPLOS.md`](docs/EXEMPLOS.md) | Exemplos práticos de uso |
 | [`docs/API.md`](docs/API.md) | Documentação da API interna para uso programático |
-| [`docs/adr.md`](docs/adr.md) | Architecture Decision Records (12 ADRs documentados) |
+| [`docs/adr.md`](docs/adr.md) | Architecture Decision Records (20 ADRs documentados) |
+| [`desktop/README.md`](desktop/README.md) | App desktop: telas, segurança, build, instalador e API local |
+| [`evals/README.md`](evals/README.md) | Como avaliar os modelos de IA locais |
 | [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) | Matriz de erros com 34 códigos e soluções |
 
 ---
@@ -305,12 +350,16 @@ pytest -v --tb=long
 - [x] **WebApp Modular** — Refatorado de 2144 linhas monolíticas para 16 módulos
 - [x] **Finanças Pessoais** — Importação CSV/Excel/PDF, categorização, metas, alertas
 - [x] **Watchlist e Comparação** — Gerenciamento de ativos e comparação lado a lado
+- [x] **App Desktop** — Janela nativa para Windows com instalador (ADR 015)
+- [x] **Orçamento Mensal** — Limites por categoria, com aviso quando o ritmo vai estourar
+- [x] **Recorrentes, backup, PIN e cofre da chave** — ADRs 016 a 018
+- [x] **Categorização que aprende** — Regras por estabelecimento a partir das correções (ADR 020)
 
 ### 🔜 Em Breve
 - [ ] **Suporte a Criptomoedas** — Integração com CoinGecko e CoinMarketCap
 - [ ] **Notificações em Tempo Real** — Alertas de preço alvo via desktop/email
-- [ ] **Orçamento Mensal** — Limites por categoria com alertas de estouro
-- [ ] **Categorizador com IA** — Usar LLM para categorizar transações automaticamente
+- [ ] **IA para estabelecimentos novos** — Chamar o modelo local só quando não houver regra, com cache
+- [ ] **Windows Hello** — Desbloquear o app com biometria no lugar do PIN
 
 ### 📋 Planejado
 - [ ] **Interface TUI** — Modo texto interativo com [Textual](https://textual.textualize.io/)
