@@ -11,7 +11,7 @@
 
 #define AppName "Stonks AI"
 ; Mantenha igual à versão do pyproject.toml
-#define AppVersion "0.1.1"
+#define AppVersion "0.2.0"
 #define AppExe "StonksAI.exe"
 
 [Setup]
