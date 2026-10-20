@@ -1,0 +1,31 @@
+name: Testes
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  testes:
+    # O app é para Windows; os testes rodam no mesmo sistema
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+
+      - name: Instalar dependências
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev,e2e]" fastapi uvicorn
+
+      - name: Instalar o navegador dos testes ponta a ponta
+        run: python -m playwright install chromium
+
+      # Sem Ollama no CI: os testes da IA usam respostas simuladas
+      - name: Rodar os testes
+        run: python -m pytest -q

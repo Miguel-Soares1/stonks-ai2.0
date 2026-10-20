@@ -305,7 +305,11 @@ stonks-ai/
 ## 🧪 Testes
 
 ```bash
-# Executar todos os testes
+# Dependências de teste (uma vez)
+pip install -e ".[dev,e2e]" fastapi uvicorn
+python -m playwright install chromium   # ou use o Edge já instalado no Windows
+
+# Executar todos os testes (inclui os ponta a ponta do app desktop, que clicam no app num navegador)
 pytest
 
 # Com relatório de cobertura
@@ -318,6 +322,8 @@ pytest tests/test_agents.py -v
 # Modo verboso com output detalhado
 pytest -v --tb=long
 ```
+
+Os testes rodam a cada push no GitHub Actions (`.github/workflows/testes.yml`), no Windows. Sem Ollama no CI, as respostas da IA são simuladas.
 
 ---
 

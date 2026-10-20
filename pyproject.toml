@@ -65,6 +65,10 @@ dev = [
     "mypy>=1.0",
     "pre-commit>=3.0",
 ]
+# Testes ponta a ponta do app desktop (tests/test_e2e_desktop.py)
+e2e = [
+    "playwright>=1.40",
+]
 
 [tool.setuptools.packages.find]
 include = ["stonks_ai*"]
