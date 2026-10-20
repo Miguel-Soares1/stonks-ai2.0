@@ -12,7 +12,8 @@ from pydantic import BaseModel, Field
 
 from desktop.state import personal_agent
 from desktop.streaming import require_llm, stream_text
-from stonks_ai.utils import recurrence
+from stonks_ai.collectors.finance.categorizer import Categorizer
+from stonks_ai.utils import insights, recurrence
 from stonks_ai.utils.finance_utils import get_month_summary, get_multi_month_summary
 
 router = APIRouter(prefix="/api")
@@ -61,6 +62,8 @@ def dashboard(year: Optional[int] = None, month: Optional[int] = None) -> Dict[s
         "alerts": data["active_alerts"],
         # 31 dias: uma conta mensal sempre aparece, mesmo no dia em que acabou de ser lançada
         "upcoming_recurring": recurrence.upcoming(days=31),
+        "insights": insights.month_insights(year, month),
+        "accounts_total": round(sum(a.get("balance") or 0 for a in personal_agent().list_accounts(active_only=True)), 2),
     }
 
 
@@ -175,6 +178,18 @@ def categories() -> List[Dict[str, Any]]:
 def budget(year: Optional[int] = None, month: Optional[int] = None) -> Dict[str, Any]:
     now = datetime.now()
     return personal_agent().get_budget_overview(year or now.year, month or now.month)
+
+
+@router.get("/category-rules")
+def category_rules() -> List[Dict[str, str]]:
+    """Regras aprendidas com as correções do usuário (estabelecimento -> categoria)."""
+    return Categorizer.list_rules()
+
+
+@router.delete("/category-rules/{merchant}", status_code=204)
+def category_rule_delete(merchant: str) -> None:
+    if not Categorizer.delete_rule(merchant):
+        raise _not_found("Regra")
 
 
 @router.put("/categories/{category_id}/budget")

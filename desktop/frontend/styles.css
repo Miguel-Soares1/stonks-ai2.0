@@ -149,10 +149,12 @@ code, .mono { font-family: Consolas, ui-monospace, monospace; font-size: 0.9em; 
 .main { overflow-y: auto; padding: 0 40px 56px; }
 .topbar {
   position: sticky; top: 0; z-index: 3;
-  display: flex; justify-content: flex-end;
+  display: flex; justify-content: flex-end; align-items: center; gap: 10px;
   padding: 16px 0;
   background: var(--paper);
 }
+.topbar-actions { display: flex; align-items: center; gap: 8px; }
+.topbar-actions .icon-btn[aria-pressed="true"] { color: var(--brand); border-color: var(--brand); }
 .view { max-width: 1120px; display: grid; gap: 20px; align-content: start; }
 .stack { display: grid; gap: 20px; align-content: start; }
 .stack:empty { display: none; }
@@ -261,6 +263,44 @@ kbd { font: 12px var(--font); padding: 1px 6px; border: 1px solid var(--line); b
 .story .down { color: var(--down); }
 .story-sm { max-width: 52ch; font-size: 22px; }
 .story-note { margin-top: 12px; font: 15px/1.5 var(--font); color: var(--ink-2); max-width: 64ch; }
+
+/* Três números do mês (saldo, entrou, saiu) */
+.kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.kpis:empty { display: none; }
+.kpi {
+  display: grid; gap: 6px; align-content: start;
+  padding: 18px 20px;
+  border: 1px solid var(--line); border-radius: var(--radius-panel);
+  background: var(--surface); color: inherit; text-decoration: none;
+}
+a.kpi:hover { border-color: var(--ink-3); }
+.kpi-label { display: flex; align-items: center; gap: 8px; color: var(--ink-2); font-size: 14px; }
+.kpi-label svg { width: 16px; height: 16px; }
+.kpi-dot { width: 8px; height: 8px; border-radius: 50%; }
+.kpi-dot.in { background: var(--series-1); }
+.kpi-dot.out { background: var(--series-2); }
+.kpi-value { font: 650 28px/1.2 var(--font-display); letter-spacing: -0.01em; white-space: nowrap; }
+.kpi-sub { color: var(--ink-3); font-size: 13px; }
+.kpi-delta { font-size: 13px; font-weight: 600; }
+.kpi-delta.up { color: var(--up); }
+.kpi-delta.down { color: var(--down); }
+
+/* Insight calculado pelo código; a IA só explica se o usuário pedir */
+.insights { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.insights:empty { display: none; }
+.insight {
+  display: grid; gap: 8px; align-content: start; justify-items: start;
+  padding: 18px 20px;
+  border: 1px solid color-mix(in srgb, var(--brand) 35%, var(--line));
+  border-radius: var(--radius-panel);
+  background: linear-gradient(145deg, var(--brand-soft), var(--surface) 70%);
+}
+.insight-label { display: flex; align-items: center; gap: 6px; color: var(--brand); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+.insight-label svg { width: 15px; height: 15px; }
+.insight h3 { font: 600 19px/1.35 var(--font-display); }
+.insight h3 em { font-style: normal; color: var(--brand); }
+.insight p { color: var(--ink-2); font-size: 14.5px; max-width: 60ch; }
+.insight .btn { margin-top: 4px; }
 
 .pace { max-width: 720px; }
 .pace-track { position: relative; height: 12px; border-radius: 6px; background: var(--track); }
@@ -442,10 +482,44 @@ a.ticker:hover { color: var(--brand); }
 .chat-input textarea:focus { outline: 2px solid var(--brand); outline-offset: -1px; }
 .chat-input .btn { height: 44px; }
 
+/* Conversa flutuante: a mesma conversa da tela Assistente, sem sair da tela atual */
+.chat-drawer {
+  position: fixed; right: 20px; bottom: 20px; z-index: 15;
+  width: min(420px, calc(100vw - 40px)); height: min(620px, calc(100vh - 100px));
+  display: grid; grid-template-rows: auto 1fr;
+  border: 1px solid var(--line); border-radius: 14px;
+  background: var(--surface);
+  box-shadow: 0 24px 64px var(--shadow);
+  animation: drawer-in 200ms ease-out;
+}
+@keyframes drawer-in { from { opacity: 0; transform: translateY(10px); } }
+@media (prefers-reduced-motion: reduce) { .chat-drawer { animation: none; } }
+.chat-drawer-head { display: flex; align-items: center; gap: 12px; padding: 12px 12px 12px 16px; border-bottom: 1px solid var(--line); }
+.chat-drawer-head > div { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-drawer-body { min-height: 0; padding: 12px; }
+.chat-compact { height: 100%; grid-template-rows: 1fr auto auto; max-width: none; }
+.chat-compact .chat-log { min-height: 0; max-height: none; padding: 12px; border: 0; background: var(--paper); }
+.chat-compact .bubble { max-width: 92%; }
+.chat-compact .chat-input .btn span { display: none; }
+
+/* ── Bloqueio por PIN ────────────────────────────────── */
+
+.lock-screen { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; background: var(--paper); }
+.lock-card { display: grid; justify-items: center; gap: 12px; width: min(340px, calc(100vw - 32px)); text-align: center; }
+.lock-card > svg { width: 40px; height: 40px; color: var(--brand); }
+.lock-card h1 { font: 600 22px/1.3 var(--font-display); }
+.lock-card input {
+  width: 100%; height: 48px; text-align: center; letter-spacing: 0.5em; font-size: 22px;
+  border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--surface); color: var(--ink);
+}
+.lock-card input:focus { outline: 2px solid var(--brand); outline-offset: -1px; }
+.lock-card .btn { width: 100%; justify-content: center; height: 44px; }
+
 /* ── Ajustes ─────────────────────────────────────────── */
 
 .settings { display: grid; gap: 16px; }
 .settings .form-grid { max-width: 640px; }
+#lock-panel .field { margin-top: 14px; }
 
 /* ── Diálogos ────────────────────────────────────────── */
 
@@ -518,6 +592,7 @@ dialog::backdrop { background: rgba(14, 22, 38, 0.4); }
 
 @media (max-width: 1100px) {
   .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .kpi-value { font-size: 24px; }
   .panel-wide { grid-column: span 2; }
 }
 
@@ -530,4 +605,6 @@ dialog::backdrop { background: rgba(14, 22, 38, 0.4); }
   .panel-wide { grid-column: auto; }
   .story { font-size: 26px; }
   .budget-row { grid-template-columns: 1fr; }
+  .kpis { grid-template-columns: 1fr; }
+  .topbar-actions .btn span { display: none; }
 }

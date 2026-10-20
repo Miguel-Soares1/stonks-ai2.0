@@ -10,6 +10,7 @@ import httpx
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
+from desktop import lock
 from desktop.state import financial_agent, reset_agents
 from stonks_ai import __version__, backup
 from stonks_ai.config import DATA_DIR, config
@@ -47,6 +48,16 @@ def status() -> Dict[str, Any]:
     }
 
 
+@router.get("/boot")
+def boot() -> Dict[str, Any]:
+    """O mínimo para a primeira pintura da janela (rápido e liberado com o app bloqueado)."""
+    return {
+        "theme": config.get("ui", "theme", default="system"),
+        "hide_values": bool(config.get("ui", "hide_values", default=False)),
+        "lock": lock.status(),
+    }
+
+
 class ThemeIn(BaseModel):
     theme: Literal["light", "dark", "system"]
 
@@ -55,6 +66,17 @@ class ThemeIn(BaseModel):
 def save_theme(body: ThemeIn) -> Dict[str, str]:
     config.set(body.theme, "ui", "theme")
     return {"theme": body.theme}
+
+
+class HideValuesIn(BaseModel):
+    hide_values: bool
+
+
+@router.put("/settings/hide-values")
+def save_hide_values(body: HideValuesIn) -> Dict[str, bool]:
+    """Ocultar valores (R$ ••••) para usar o app perto de outras pessoas."""
+    config.set(body.hide_values, "ui", "hide_values")
+    return {"hide_values": body.hide_values}
 
 
 @router.get("/settings")
@@ -94,6 +116,54 @@ def save_settings(body: SettingsIn) -> Dict[str, Any]:
     # Os agentes guardam o cliente LLM; recria para valer o novo provider/modelo
     reset_agents()
     return settings()
+
+
+# ── Bloqueio por PIN ────────────────────────────────────────────────────
+
+class UnlockIn(BaseModel):
+    pin: str = Field(max_length=32)
+
+
+class PinIn(BaseModel):
+    new_pin: str = Field(default="", max_length=32)  # vazio remove o PIN
+    current_pin: str = Field(default="", max_length=32)
+
+
+class LockTimeoutIn(BaseModel):
+    minutes: int
+
+
+def _lock_call(fn, *args) -> Dict[str, Any]:
+    try:
+        fn(*args)
+    except lock.LockError as e:
+        raise HTTPException(status_code=e.status, detail=str(e))
+    return lock.status()
+
+
+@router.get("/lock")
+def lock_status() -> Dict[str, Any]:
+    return lock.status()
+
+
+@router.post("/lock/unlock")
+def lock_unlock(body: UnlockIn) -> Dict[str, Any]:
+    return _lock_call(lock.unlock, body.pin)
+
+
+@router.post("/lock/lock")
+def lock_lock() -> Dict[str, Any]:
+    return _lock_call(lock.lock_now)
+
+
+@router.put("/lock/pin")
+def lock_set_pin(body: PinIn) -> Dict[str, Any]:
+    return _lock_call(lock.set_pin, body.new_pin, body.current_pin)
+
+
+@router.put("/lock/timeout")
+def lock_set_timeout(body: LockTimeoutIn) -> Dict[str, Any]:
+    return _lock_call(lock.set_timeout, body.minutes)
 
 
 # ── Backup ──────────────────────────────────────────────────────────────

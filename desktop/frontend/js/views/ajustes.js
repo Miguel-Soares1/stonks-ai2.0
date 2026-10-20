@@ -1,6 +1,6 @@
-// Ajustes: qual IA usar (local ou remota), backup e informações do sistema.
+// Ajustes: qual IA usar (local ou remota), bloqueio por PIN, backup e informações do sistema.
 
-import { api, confirmDialog, esc, icon, toast, $ } from "../core.js";
+import { api, confirmDialog, esc, formDialog, icon, toast, $ } from "../core.js";
 
 const REASONS = { manual: "Manual", auto: "Automático", antes: "Antes de restaurar" };
 
@@ -85,7 +85,62 @@ const PROVIDERS = [
   ["openai_compatible", "Outro compatível com OpenAI (nuvem)"],
 ];
 
-export async function render(root, _params, { refreshStatus }) {
+const TIMEOUTS = [[0, "Só ao abrir o app"], [5, "Após 5 minutos sem uso"], [10, "Após 10 minutos sem uso"],
+  [30, "Após 30 minutos sem uso"], [60, "Após 1 hora sem uso"]];
+
+function setupLock(panel, applyLockStatus) {
+  const paint = (st) => {
+    applyLockStatus(st);
+    panel.innerHTML = `
+      <div class="panel-head"><h2>Bloqueio por PIN</h2>
+        <div class="toolbar">${st.enabled
+          ? `<button class="btn" type="button" data-pin="remove">Remover PIN</button>
+             <button class="btn btn-primary" type="button" data-pin="change">Trocar PIN</button>`
+          : `<button class="btn btn-primary" type="button" data-pin="set">${icon("lock")}<span>Definir PIN</span></button>`}
+        </div>
+      </div>
+      <p class="muted small">${st.enabled
+        ? "O app pede o PIN ao abrir e depois de um tempo sem uso. Use o cadeado no topo para bloquear na hora."
+        : "Sem PIN, qualquer pessoa que usar este computador consegue abrir o app e ver suas finanças."}
+        O PIN protege o app aberto, mas não criptografa os arquivos: quem entra na sua conta do Windows ainda acessa a pasta de dados.</p>
+      ${st.enabled ? `<label class="field narrow"><span>Bloquear de novo</span><select name="lock-timeout">${TIMEOUTS.map(([v, l]) =>
+        `<option value="${v}" ${v === st.timeout_minutes ? "selected" : ""}>${l}</option>`).join("")}</select></label>` : ""}`;
+
+    panel.querySelectorAll("[data-pin]").forEach((b) => b.addEventListener("click", () => editPin(b.dataset.pin)));
+    const sel = $("select[name=lock-timeout]", panel);
+    if (sel) sel.addEventListener("change", async () => {
+      try { paint(await api("/api/lock/timeout", { method: "PUT", body: { minutes: Number(sel.value) } })); toast("Tempo de bloqueio salvo."); }
+      catch (e) { toast(e.message, "error"); }
+    });
+  };
+
+  const pinField = (name, label, autofocus) => ({ name, label, type: "password", required: true, autofocus,
+    placeholder: "4 a 8 números" });
+  const editPin = async (mode) => {
+    const fields = {
+      set: [pinField("new_pin", "Novo PIN", true), pinField("confirm", "Repita o PIN")],
+      change: [pinField("current_pin", "PIN atual", true), pinField("new_pin", "Novo PIN"), pinField("confirm", "Repita o novo PIN")],
+      remove: [pinField("current_pin", "PIN atual", true)],
+    }[mode];
+    const st = await formDialog({
+      title: { set: "Definir PIN", change: "Trocar PIN", remove: "Remover PIN" }[mode],
+      submitLabel: { set: "Definir PIN", change: "Trocar PIN", remove: "Remover PIN" }[mode],
+      fields,
+      onSubmit: (v) => {
+        if (mode !== "remove" && v.new_pin !== v.confirm) throw new Error("Os dois PINs não são iguais.");
+        return api("/api/lock/pin", { method: "PUT", body: { new_pin: mode === "remove" ? "" : v.new_pin, current_pin: v.current_pin || "" } });
+      },
+    });
+    if (st) {
+      toast({ set: "PIN definido.", change: "PIN trocado.", remove: "PIN removido." }[mode]);
+      paint(st);
+    }
+  };
+
+  api("/api/lock").then(paint).catch((e) => { panel.innerHTML = `<p class="empty">${esc(e.message)}</p>`; });
+}
+
+export async function render(root, _params, { refreshStatus, applyLockStatus }) {
   root.innerHTML = `<h1 class="page-title">Ajustes</h1><p class="muted">Carregando…</p>`;
   let s, models;
   try {
@@ -121,6 +176,7 @@ export async function render(root, _params, { refreshStatus }) {
       </article>
       <div class="toolbar"><button class="btn btn-primary" type="submit">Salvar ajustes</button></div>
     </form>
+    <article class="panel" id="lock-panel"></article>
     <article class="panel">
       <div class="panel-head"><h2>Backup</h2>
         <div class="toolbar">
@@ -171,6 +227,7 @@ export async function render(root, _params, { refreshStatus }) {
   $("input[name=temperature]", form).addEventListener("input", (e) => { $("#temp-out", form).textContent = e.target.value; });
   sync();
 
+  setupLock($("#lock-panel", root), applyLockStatus);
   setupBackups(root);
 
   form.addEventListener("submit", async (e) => {

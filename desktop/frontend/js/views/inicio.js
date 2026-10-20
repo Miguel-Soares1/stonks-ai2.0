@@ -1,6 +1,6 @@
 // Início: o mês contado em uma frase, ritmo de gastos, gráficos, metas e watchlist.
 
-import { aiPanel, api, brl, changeHtml, esc, icon, money, monthName, monthTitle, moneyCompact, pct, shortDate, $ } from "../core.js";
+import { aiPanel, api, brl, brlCompact, changeHtml, esc, icon, money, monthName, monthTitle, pct, shortDate, valuesHidden, $ } from "../core.js";
 import { groupedBars, lineChart } from "../charts.js";
 
 const today = new Date();
@@ -15,8 +15,10 @@ export async function render(root) {
         <button class="icon-btn" id="month-next" type="button" aria-label="Próximo mês">${icon("right")}</button>
       </div>
     </div>
+    <div class="kpis" id="kpis"></div>
     <div class="story" id="story" aria-live="polite"></div>
     <div class="pace" id="pace"></div>
+    <div class="insights" id="insights"></div>
     <div id="month-ai"></div>
     <div id="alerts"></div>
     <div class="grid">
@@ -48,12 +50,14 @@ async function loadMonth(root) {
   $("#month-next", root).disabled = isCurrent;
   try {
     const d = await api(`/api/dashboard?year=${state.year}&month=${state.month}`);
+    renderKpis(root, d, isCurrent);
     renderStory(root, d, isCurrent);
     renderPace(root, d, isCurrent);
+    renderInsights(root, d.insights);
     renderAlerts(root, d.alerts);
     lineChart($("#balance-chart", root), [{ name: "Saldo", color: "var(--brand)", points:
       d.balance_history.every((p) => p.balance === 0) ? [] : d.balance_history.map((p) => ({ date: p.date, value: p.balance })) }],
-      { yFormat: (v) => moneyCompact(v), tooltipFormat: brl, area: true, baseline: 0,
+      { yFormat: brlCompact, tooltipFormat: brl, area: true, baseline: 0,
         label: "Saldo acumulado nos últimos 90 dias", emptyMessage: "Sem movimentações nos últimos 90 dias." });
     renderCategories(root, d.summary.top_categories);
     renderGoals(root, d.goals);
@@ -93,11 +97,63 @@ function renderStory(root, d, isCurrent) {
       note = `<p class="story-note">Você gastou ${brl(Math.abs(diff))} ${diff > 0 ? "a mais" : "a menos"} que ${scope}.</p>`;
     }
   }
+  // Entradas e saídas já estão nos cartões acima; a frase conta o resultado
   $("#story", root).innerHTML = `
-    <p>Em ${esc(name)}, entraram <strong>${brl(s.total_income)}</strong>
-    e saíram <strong>${brl(s.total_expense)}</strong>.
-    ${rest} <strong class="${sign ? "up" : "down"}">${sign ? "▲" : "▼"}&nbsp;${brl(Math.abs(s.balance))}</strong>.</p>
+    <p>${rest} <strong class="${sign ? "up" : "down"}">${sign ? "▲" : "▼"}&nbsp;${brl(Math.abs(s.balance))}</strong> em ${esc(name)}.</p>
     ${note}`;
+}
+
+// Variação contra o mês anterior. Em despesas, subir é ruim: a cor segue o significado, a seta o sentido.
+function delta(cur, prev, upIsGood) {
+  if (!prev) return "";
+  const v = (cur - prev) / prev * 100;
+  if (Math.abs(v) < 0.5) return `<span class="kpi-delta">igual ao mês anterior</span>`;
+  const up = v > 0;
+  return `<span class="kpi-delta ${up === upIsGood ? "up" : "down"}">${up ? "▲" : "▼"} ${Math.abs(v).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}%</span>`;
+}
+
+function renderKpis(root, d, isCurrent) {
+  const s = d.summary;
+  const p = d.previous && d.previous.transaction_count ? d.previous : null;
+  const prevName = p ? monthName(p.year, p.month) : "";
+  // No mês em andamento, comparar com o mês anterior inteiro seria injusto
+  const sub = (cur, prev, upIsGood) => isCurrent
+    ? `<span class="kpi-sub">até hoje, dia ${d.period.day} de ${d.period.days_in_month}</span>`
+    : p ? `${delta(cur, prev, upIsGood)} <span class="kpi-sub">vs. ${esc(prevName)}</span>` : "";
+  $("#kpis", root).innerHTML = `
+    <a class="kpi" href="#contas">
+      <span class="kpi-label">${icon("bank")} Saldo nas contas</span>
+      <strong class="kpi-value">${brl(d.accounts_total)}</strong>
+      <span class="kpi-sub">${d.accounts_total ? "soma das contas e cartões" : "cadastre os saldos em Contas"}</span>
+    </a>
+    <div class="kpi">
+      <span class="kpi-label"><span class="kpi-dot in"></span> Entrou</span>
+      <strong class="kpi-value">${brl(s.total_income)}</strong>
+      <span>${sub(s.total_income, p && p.total_income, true)}</span>
+    </div>
+    <div class="kpi">
+      <span class="kpi-label"><span class="kpi-dot out"></span> Saiu</span>
+      <strong class="kpi-value">${brl(s.total_expense)}</strong>
+      <span>${sub(s.total_expense, p && p.total_expense, false)}</span>
+    </div>`;
+}
+
+// Os números vêm do código (stonks_ai/utils/insights.py); a IA só explica, se o usuário pedir
+function renderInsights(root, items) {
+  const el = $("#insights", root);
+  if (!items || !items.length) { el.innerHTML = ""; return; }
+  // O texto já vem com os valores formatados no servidor; o "ocultar valores" vale para eles também
+  const MONEY = /R\$\s?-?[\d.]+(?:,\d+)?/g;
+  const show = (t) => esc(valuesHidden() ? t.replace(MONEY, "R$ ••••") : t);
+  el.innerHTML = items.map((i, n) => `
+    <article class="insight">
+      <span class="insight-label">${icon("sparkle")} ${i.kind === "budget_pace" ? "Orçamento" : "Insight do mês"}</span>
+      <h3>${show(i.headline).replace(/R\$\s?(?:-?[\d.]+(?:,\d+)?|••••)/, (m) => `<em>${m}</em>`)}</h3>
+      <p>${show(i.message)}</p>
+      <button class="btn" type="button" data-ask="${n}">Entender com a IA ${icon("right")}</button>
+    </article>`).join("");
+  el.querySelectorAll("[data-ask]").forEach((b) => b.addEventListener("click", () =>
+    window.dispatchEvent(new CustomEvent("stonks:ask", { detail: items[Number(b.dataset.ask)].question }))));
 }
 
 function renderPace(root, d, isCurrent) {
@@ -194,7 +250,7 @@ async function loadMonths(root) {
       label: new Intl.DateTimeFormat("pt-BR", { month: "short" }).format(new Date(m.year, m.month - 1, 1)).replace(".", ""),
       values: [m.total_income, m.total_expense],
     })), [{ name: "Receitas", color: "var(--series-1)" }, { name: "Despesas", color: "var(--series-2)" }],
-    { yFormat: (v) => moneyCompact(v), tooltipFormat: brl, label: "Receitas e despesas por mês" });
+    { yFormat: brlCompact, tooltipFormat: brl, label: "Receitas e despesas por mês" });
   } catch (e) {
     el.innerHTML = `<p class="empty">${esc(e.message)}</p>`;
   }

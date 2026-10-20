@@ -258,11 +258,15 @@ class PersonalFinanceAgent(BaseAgent):
                 if tx_type is not None:
                     tx.type = tx_type
 
+                learn_from = None
                 if category_name is not None:
                     cat = session.query(Category).filter(
                         Category.name == category_name
                     ).first()
                     if cat:
+                        # Correção do usuário: o estabelecimento passa a ir para esta categoria
+                        if cat.name != tx.category_name:
+                            learn_from = (tx.description, cat.name, tx.category_name)
                         tx.category_id = cat.id
                         tx.category_name = cat.name
 
@@ -301,6 +305,7 @@ class PersonalFinanceAgent(BaseAgent):
 
             if starts_series:
                 recurrence.generate_due()
+            result["also_recategorized"] = self.categorizer.learn(*learn_from) if learn_from else 0
             return result
 
         except DatabaseError as e:

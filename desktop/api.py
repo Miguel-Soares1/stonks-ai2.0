@@ -16,6 +16,7 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from desktop import lock
 from desktop.routes import assistant, finance, market, settings
 from desktop.state import personal_agent
 from stonks_ai import backup
@@ -31,6 +32,7 @@ FRONTEND_DIR = Path(__file__).resolve().parent / "frontend"
 # ficam abertas: isso só acontece rodando a API à mão em modo desenvolvimento.
 API_TOKEN = os.environ.get("STONKS_API_TOKEN", "")
 TOKEN_HEADER = "x-stonks-token"
+LOCK_FREE_PATHS = {"/api/status", "/api/boot"}
 
 SECURITY_HEADERS = {
     # Só scripts e estilos do próprio app; nenhum recurso externo; não pode ser embutido em outro site
@@ -81,10 +83,16 @@ app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost
 
 @app.middleware("http")
 async def protect(request: Request, call_next):
-    if API_TOKEN and request.url.path.startswith("/api/"):
+    path = request.url.path
+    if API_TOKEN and path.startswith("/api/"):
         sent = request.headers.get(TOKEN_HEADER, "")
         if not secrets.compare_digest(sent.encode(), API_TOKEN.encode()):
             return JSONResponse(status_code=401, content={"detail": "Acesso negado."}, headers=SECURITY_HEADERS)
+    # Com PIN, os dados só saem depois de desbloquear; status e as rotas do bloqueio ficam livres
+    if path.startswith("/api/") and path not in LOCK_FREE_PATHS and not path.startswith("/api/lock"):
+        if lock.is_locked():
+            return JSONResponse(status_code=423, content={"detail": "App bloqueado. Digite o PIN."}, headers=SECURITY_HEADERS)
+        lock.touch()
     response = await call_next(request)
     response.headers.update(SECURITY_HEADERS)
     return response

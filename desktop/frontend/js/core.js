@@ -8,7 +8,14 @@ export const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 const brlFmt = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const pctFmt = new Intl.NumberFormat("pt-BR", { style: "percent", maximumFractionDigits: 0 });
 
-export const brl = (v) => brlFmt.format(v ?? 0);
+// "Ocultar valores": todo valor em dinheiro do app passa por estas funções, então basta
+// mascarar aqui. Cotações de ativos (money) continuam visíveis: não são dados pessoais.
+let hideValues = false;
+export const setHideValues = (on) => { hideValues = Boolean(on); };
+export const valuesHidden = () => hideValues;
+const MASK = "R$ ••••";
+
+export const brl = (v) => (hideValues ? MASK : brlFmt.format(v ?? 0));
 export const pct = (v) => pctFmt.format(v ?? 0);
 export const money = (v, currency = "BRL") =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: currency || "BRL" }).format(v ?? 0);
@@ -16,6 +23,8 @@ export const moneyCompact = (v, currency = "BRL") =>
   new Intl.NumberFormat("pt-BR", {
     style: "currency", currency: currency || "BRL", notation: "compact", maximumFractionDigits: 1,
   }).format(v ?? 0);
+// Eixos dos gráficos de finanças pessoais (mascarado como brl)
+export const brlCompact = (v) => (hideValues ? "••••" : moneyCompact(v));
 export const num = (v, digits = 2) =>
   (v ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: digits, maximumFractionDigits: digits });
 export const compactNum = (v) =>
@@ -88,6 +97,7 @@ export async function api(path, { method = "GET", body, raw } = {}) {
   const res = await fetch(path, init);
   if (res.status === 204) return null;
   const data = await res.json().catch(() => ({}));
+  if (res.status === 423) window.dispatchEvent(new Event("stonks:locked"));
   if (!res.ok) throw new Error(detailMessage(data, res.status));
   return data;
 }
@@ -101,6 +111,7 @@ export async function apiStream(path, { method = "GET", body, signal, onText }) 
   }
   const res = await fetch(path, init);
   if (!res.ok) {
+    if (res.status === 423) window.dispatchEvent(new Event("stonks:locked"));
     const data = await res.json().catch(() => ({}));
     throw new Error(detailMessage(data, res.status));
   }
@@ -233,6 +244,8 @@ function inline(s) {
 }
 
 export function markdown(src) {
+  // Respostas da IA citam valores do usuário; com "ocultar valores" eles também somem
+  if (hideValues) src = String(src ?? "").replace(/R\$\s?-?[\d.]+(?:,\d+)?/g, MASK);
   const lines = esc(src).split(/\r?\n/);
   let html = "";
   let para = [];

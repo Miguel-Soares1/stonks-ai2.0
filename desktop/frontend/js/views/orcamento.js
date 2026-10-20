@@ -1,4 +1,4 @@
-// Orçamento: limite mensal por categoria e quanto já foi usado.
+// Orçamento: limite mensal por categoria, quanto já foi usado e as regras de categoria aprendidas.
 
 import { api, brl, esc, formDialog, icon, monthTitle, pct, toast, $ } from "../core.js";
 
@@ -67,7 +67,12 @@ async function load(root) {
     ${withLimit.length ? `<article class="panel"><h2>Com limite</h2><ul class="budget-list">${withLimit.map(row).join("")}</ul></article>` : ""}
     <article class="panel"><h2>Sem limite definido</h2>
       ${without.length ? `<ul class="budget-list">${without.map(row).join("")}</ul>` : `<p class="empty">Todas as categorias têm limite.</p>`}
+    </article>
+    <article class="panel"><h2>Regras aprendidas</h2>
+      <p class="muted small">Quando você corrige a categoria de uma transação, o estabelecimento passa a ir sempre para a categoria escolhida.</p>
+      <div id="rules"><p class="empty">Carregando…</p></div>
     </article>`;
+  loadRules(root);
 
   el.querySelectorAll("button[data-id]").forEach((b) => b.addEventListener("click", async () => {
     const c = data.categories.find((x) => String(x.id) === b.dataset.id);
@@ -78,6 +83,37 @@ async function load(root) {
       onSubmit: (v) => api(`/api/categories/${c.id}/budget`, { method: "PUT", body: { limit: Number(v.limit) } }),
     });
     if (saved) { toast(`Limite de ${c.name} salvo.`); load(root); }
+  }));
+}
+
+async function loadRules(root) {
+  const el = $("#rules", root);
+  let rules;
+  try {
+    rules = await api("/api/category-rules");
+  } catch (e) {
+    el.innerHTML = `<p class="empty">${esc(e.message)}</p>`;
+    return;
+  }
+  if (!rules.length) {
+    el.innerHTML = `<p class="empty">Nenhuma regra ainda. Corrija a categoria de uma transação em Transações para criar a primeira.</p>`;
+    return;
+  }
+  el.innerHTML = `<table class="table">
+    <thead><tr><th>Estabelecimento</th><th>Vai para</th><th class="actions"><span class="sr-only">Ações</span></th></tr></thead>
+    <tbody>${rules.map((r) => `<tr data-merchant="${esc(r.merchant)}">
+      <td>${esc(r.merchant)}</td><td>${esc(r.category)}</td>
+      <td class="actions"><button class="icon-btn" type="button" aria-label="Apagar regra de ${esc(r.merchant)}">${icon("trash")}</button></td>
+    </tr>`).join("")}</tbody></table>`;
+  el.querySelectorAll("tr[data-merchant] button").forEach((b) => b.addEventListener("click", async () => {
+    const merchant = b.closest("tr").dataset.merchant;
+    try {
+      await api(`/api/category-rules/${encodeURIComponent(merchant)}`, { method: "DELETE" });
+      toast(`Regra de ${merchant} apagada.`);
+      loadRules(root);
+    } catch (e) {
+      toast(e.message, "error");
+    }
   }));
 }
 

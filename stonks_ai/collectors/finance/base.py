@@ -1,13 +1,12 @@
 """Classe base para importadores de dados financeiros."""
 
-import json
 import re
 from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
+from stonks_ai.collectors.finance import categorizer
 from stonks_ai.database import db
-from stonks_ai.models.category import Category
 from stonks_ai.models.transaction import Transaction
 
 
@@ -20,7 +19,7 @@ class FinanceImporter(ABC):
     """Classe base abstrata para importadores de extratos financeiros."""
 
     def __init__(self):
-        self._cached_categories: Optional[List[Category]] = None
+        self._categorizer = categorizer.Categorizer()
 
     @abstractmethod
     def parse(self, file_path: str) -> List[Dict[str, Any]]:
@@ -130,44 +129,14 @@ class FinanceImporter(ABC):
 
     def _categorize(self, description: str) -> Tuple[Optional[int], str]:
         """
-        Classifica uma transação em uma categoria usando regex + keywords.
+        Classifica uma transação com o mesmo categorizador das transações manuais
+        (regras aprendidas + palavras-chave).
 
         Returns:
             Tuple (category_id, category_name)
         """
-        desc_upper = description.upper()
-
-        # Carrega categorias do banco (com cache)
-        if self._cached_categories is None:
-            try:
-                with db.session() as session:
-                    self._cached_categories = (
-                        session.query(Category)
-                        .order_by(Category.sort_order)
-                        .all()
-                    )
-            except Exception:
-                self._cached_categories = []
-
-        # Tenta match com keywords de cada categoria
-        for cat in self._cached_categories:
-            if not cat.keywords:
-                continue
-            try:
-                keywords_list = json.loads(cat.keywords)
-                for kw in keywords_list:
-                    if kw.upper() in desc_upper:
-                        return cat.id, cat.name
-            except (json.JSONDecodeError, TypeError):
-                continue
-
-        # Categoria padrão "Outros"
-        for cat in self._cached_categories:
-            if cat.name == "Outros":
-                return cat.id, "Outros"
-
-        return None, "Sem categoria"
+        return self._categorizer.categorize(description)
 
     def invalidate_cache(self):
         """Invalida cache de categorias (após adicionar nova categoria)."""
-        self._cached_categories = None
+        categorizer.invalidate_cache()

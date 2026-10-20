@@ -130,7 +130,11 @@ async function editTransaction(root, tx) {
     },
   });
   if (saved) {
-    toast(editing ? "Transação atualizada." : "Transação adicionada.");
+    const n = saved.also_recategorized || 0;
+    toast(editing
+      ? n ? `Transação atualizada. ${n} ${n === 1 ? "outra do mesmo estabelecimento também foi corrigida" : "outras do mesmo estabelecimento também foram corrigidas"}; as próximas já entram em ${saved.category_name}.`
+        : "Transação atualizada."
+      : "Transação adicionada.");
     load(root, true);
   }
 }

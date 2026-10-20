@@ -1,15 +1,76 @@
 """Categorizador automático de transações financeiras.
 
-Usa regex + keywords como primeira linha, com fallback para IA (Ollama)
-quando não consegue classificar. Inclui aprendizado por reclassificação do usuário.
+Ordem de decisão (a mesma para importação, transação manual e edição):
+
+1. Regra aprendida: quando o usuário corrige a categoria de uma transação, o
+   estabelecimento (ex.: "PANVEL FARMACIAS") passa a ir sempre para a categoria escolhida.
+2. Palavras-chave da categoria, como palavra inteira ("DOC" não casa com "DOCES"),
+   ganhando a mais específica ("UBER EATS" vence "UBER").
+3. "Outros".
+
+A IA (categorize_with_llm) fica disponível para quem quiser chamá-la, mas não entra no
+fluxo de importação: com centenas de linhas, cada chamada ao modelo local pesa.
 """
 
 import json
+import re
+import unicodedata
 from typing import Any, Dict, List, Optional, Tuple
 
 from stonks_ai.database import db
 from stonks_ai.models.category import Category, DEFAULT_CATEGORIES
 from stonks_ai.models.transaction import Transaction
+from stonks_ai.models.user_preferences import UserPreference
+
+RULE_PREFIX = "cat_rule:"
+
+# Partes de descrição de extrato que não identificam o estabelecimento
+_NOISE_PREFIXES = (
+    "COMPRA CARTAO DEBITO", "COMPRA CARTAO CREDITO", "COMPRA CARTAO", "COMPRA NO DEBITO",
+    "COMPRA NO CREDITO", "COMPRA DEBITO", "COMPRA CREDITO", "COMPRA", "PAG", "PAGTO", "DEB AUT",
+    "DEBITO AUTOMATICO",
+)
+_NOISE_WORDS = {
+    "LJ", "LOJA", "FILIAL", "PARC", "PARCELA", "BR", "SAO", "SP", "RJ", "MG", "LTDA", "ME", "SA", "EIRELI",
+    "DE", "DA", "DO", "DAS", "DOS",
+}
+
+# Cache compartilhado entre instâncias (agente e importadores): uma regra aprendida
+# pelo agente vale na próxima importação sem reiniciar o app.
+_cache: Dict[str, Any] = {"categories": None, "rules": None}
+
+
+def invalidate_cache() -> None:
+    _cache["categories"] = None
+    _cache["rules"] = None
+
+
+def normalize(text: str) -> str:
+    """Maiúsculas, sem acentos e com espaços simples (para comparar descrições)."""
+    no_accents = unicodedata.normalize("NFKD", text or "").encode("ascii", "ignore").decode()
+    return re.sub(r"\s+", " ", no_accents.upper()).strip()
+
+
+def merchant_key(description: str) -> str:
+    """
+    Identifica o estabelecimento numa descrição de extrato.
+
+    "COMPRA CARTAO PANVEL FARMACIAS LJ 33 20/10" -> "PANVEL FARMACIAS"
+    "UBER *TRIP 8842" -> "UBER TRIP"
+    """
+    text = normalize(description)
+    for prefix in _NOISE_PREFIXES:
+        if text.startswith(prefix + " ") or text.startswith(prefix + "*"):
+            text = text[len(prefix):]
+            break
+    words = [w for w in re.split(r"[^A-Z0-9]+", text) if w]
+    words = [w for w in words if not any(c.isdigit() for c in w) and w not in _NOISE_WORDS and len(w) > 1]
+    return " ".join(words[:3])
+
+
+def _keyword_regex(keyword: str) -> "re.Pattern[str]":
+    # Palavra inteira, aceitando plural com S ("FARMACIA" casa com "FARMACIAS")
+    return re.compile(rf"(?<![A-Z0-9]){re.escape(normalize(keyword))}S?(?![A-Z0-9])")
 
 
 # O que entra em cada categoria padrão. Modelos pequenos erram muito sem isso
@@ -74,54 +135,120 @@ class Categorizer:
     """
 
     def __init__(self):
-        self._cached_categories: Optional[List[Dict[str, Any]]] = None
         self._llm_cache: Dict[str, Tuple[int, str]] = {}
 
-    def _load_categories(self) -> List[Dict[str, Any]]:
+    @staticmethod
+    def _load_categories() -> List[Dict[str, Any]]:
         """Carrega categorias do banco com cache (como dicts, evitando detached ORM)."""
-        if self._cached_categories is None:
+        if _cache["categories"] is None:
             try:
                 with db.session() as session:
-                    cats = (
-                        session.query(Category)
-                        .order_by(Category.sort_order)
-                        .all()
-                    )
-                    self._cached_categories = [
-                        {
+                    cats = session.query(Category).order_by(Category.sort_order).all()
+                    loaded = []
+                    for c in cats:
+                        try:
+                            keywords = json.loads(c.keywords) if c.keywords else []
+                        except (json.JSONDecodeError, TypeError):
+                            keywords = []
+                        loaded.append({
                             "id": c.id,
                             "name": c.name,
-                            "keywords": json.loads(c.keywords) if c.keywords else [],
-                        }
-                        for c in cats
-                    ]
+                            "keywords": [(len(normalize(k)), _keyword_regex(k)) for k in keywords if k.strip()],
+                        })
+                    _cache["categories"] = loaded
             except Exception:
-                self._cached_categories = []
-        return self._cached_categories
+                _cache["categories"] = []
+        return _cache["categories"]
+
+    @staticmethod
+    def _load_rules() -> Dict[str, str]:
+        """Regras aprendidas: estabelecimento -> nome da categoria."""
+        if _cache["rules"] is None:
+            try:
+                with db.session() as session:
+                    prefs = session.query(UserPreference).filter(
+                        UserPreference.key.like(f"{RULE_PREFIX}%")
+                    ).all()
+                    _cache["rules"] = {p.key[len(RULE_PREFIX):]: p.value for p in prefs}
+            except Exception:
+                _cache["rules"] = {}
+        return _cache["rules"]
 
     def categorize(self, description: str) -> Tuple[Optional[int], str]:
         """
-        Classifica uma transação pela descrição usando regex + keywords.
+        Classifica uma transação: regra aprendida, depois palavra-chave mais específica.
 
         Returns:
             Tuple (category_id, category_name)
         """
-        desc_upper = description.upper()
         categories = self._load_categories()
+        by_name = {c["name"]: c for c in categories}
 
-        # Tenta match com keywords de cada categoria
+        learned = self._load_rules().get(merchant_key(description))
+        if learned in by_name:
+            return by_name[learned]["id"], learned
+
+        text = normalize(description)
+        best: Optional[Tuple[int, Dict[str, Any]]] = None
         for cat in categories:
-            keywords_list = cat.get("keywords", [])
-            for kw in keywords_list:
-                if kw.upper() in desc_upper:
-                    return cat["id"], cat["name"]
+            for length, pattern in cat["keywords"]:
+                if (best is None or length > best[0]) and pattern.search(text):
+                    best = (length, cat)
+        if best:
+            return best[1]["id"], best[1]["name"]
 
-        # Categoria padrão "Outros"
-        for cat in categories:
-            if cat["name"] == "Outros":
-                return cat["id"], "Outros"
-
+        if "Outros" in by_name:
+            return by_name["Outros"]["id"], "Outros"
         return None, "Sem categoria"
+
+    def learn(self, description: str, category_name: str, previous_category: Optional[str] = None) -> int:
+        """
+        Guarda a regra "este estabelecimento vai para esta categoria".
+
+        Transações do mesmo estabelecimento que estavam na mesma categoria antiga (ou seja,
+        que foram classificadas pelo mesmo engano) são corrigidas junto.
+
+        Returns:
+            Quantas outras transações foram recategorizadas.
+        """
+        key = merchant_key(description)
+        if not key:
+            return 0
+        with db.session() as session:
+            cat = session.query(Category).filter(Category.name == category_name).first()
+            if not cat:
+                return 0
+            pref = session.query(UserPreference).filter(UserPreference.key == RULE_PREFIX + key).first()
+            if pref:
+                pref.value = cat.name
+            else:
+                session.add(UserPreference(key=RULE_PREFIX + key, value=cat.name))
+
+            fixed = 0
+            if previous_category and previous_category != cat.name:
+                same_before = session.query(Transaction).filter(
+                    Transaction.category_name == previous_category
+                ).all()
+                for tx in same_before:
+                    if merchant_key(tx.description) == key:
+                        tx.category_id = cat.id
+                        tx.category_name = cat.name
+                        fixed += 1
+        invalidate_cache()
+        return fixed
+
+    @staticmethod
+    def list_rules() -> List[Dict[str, str]]:
+        return [{"merchant": k, "category": v} for k, v in sorted(Categorizer._load_rules().items())]
+
+    @staticmethod
+    def delete_rule(merchant: str) -> bool:
+        with db.session() as session:
+            deleted = session.query(UserPreference).filter(
+                UserPreference.key == RULE_PREFIX + merchant
+            ).delete()
+        invalidate_cache()
+        return bool(deleted)
 
     def categorize_with_llm(
         self, description: str, available_categories: List[Dict]
@@ -171,69 +298,22 @@ class Categorizer:
         self, transaction_id: int, new_category_name: str
     ) -> bool:
         """
-        Aprende com reclassificação manual do usuário.
-
-        Quando o usuário reclassifica uma transação, adiciona keywords
-        da descrição à categoria escolhida.
-
-        Args:
-            transaction_id: ID da transação reclassificada.
-            new_category_name: Nome da nova categoria.
+        Reclassifica uma transação e aprende a regra do estabelecimento (usado pela CLI).
 
         Returns:
             bool: True se aprendeu com sucesso.
         """
         try:
             with db.session() as session:
-                tx = session.query(Transaction).get(transaction_id)
-                if not tx:
+                tx = session.get(Transaction, transaction_id)
+                cat = session.query(Category).filter(Category.name == new_category_name).first()
+                if not tx or not cat:
                     return False
-
-                cat = session.query(Category).filter(
-                    Category.name == new_category_name
-                ).first()
-                if not cat:
-                    return False
-
-                # Extrai palavras-chave relevantes da descrição
-                desc_upper = tx.description.upper()
-                words = [
-                    w.strip() for w in desc_upper.split()
-                    if len(w.strip()) > 3 and not any(
-                        kw in w.strip() for kw in ["DE", "DA", "DO", "NA", "NO", "EM", "COM", "POR", "PARA"]
-                    )
-                ]
-
-                if not words:
-                    return False
-
-                # Adiciona palavras à lista de keywords da categoria
-                current_keywords = []
-                if cat.keywords:
-                    try:
-                        current_keywords = json.loads(cat.keywords)
-                    except (json.JSONDecodeError, TypeError):
-                        current_keywords = []
-
-                new_keywords = []
-                for word in words[:5]:  # Máximo 5 palavras
-                    if word not in current_keywords and word not in new_keywords:
-                        new_keywords.append(word)
-
-                if new_keywords:
-                    current_keywords.extend(new_keywords)
-                    cat.keywords = json.dumps(current_keywords)
-                    session.add(cat)
-
-                # Atualiza categoria da transação
+                description, previous = tx.description, tx.category_name
                 tx.category_id = cat.id
                 tx.category_name = cat.name
-                session.add(tx)
-
-            # Invalida cache de categorias
-            self._cached_categories = None
+            self.learn(description, cat.name, previous)
             return True
-
         except Exception:
             return False
 
@@ -257,6 +337,7 @@ class Categorizer:
                     session.add(cat)
                     created += 1
 
+            invalidate_cache()
             return created
         except Exception:
             return 0
