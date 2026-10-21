@@ -1,6 +1,7 @@
 """Testes para o banco de dados (E026-E028 da Matriz de Erros)."""
 
 import os
+import sqlite3
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -309,6 +310,37 @@ class TestDatabaseErrors:
 
         assert "DB-002" in str(exc.value)
         assert "desatualizado" in str(exc.value).lower()
+
+    def test_old_database_gets_new_columns(self, tmp_path):
+        """Banco de uma versão antiga: initialize() adiciona as colunas que faltam sem perder dados."""
+        db_path = tmp_path / "antigo.db"
+        # A tabela como era antes da coluna account_id
+        with sqlite3.connect(db_path) as conn:
+            conn.execute(
+                "CREATE TABLE transactions (id INTEGER PRIMARY KEY, description VARCHAR(500) NOT NULL, "
+                "amount FLOAT NOT NULL, type VARCHAR(20) NOT NULL, category_id INTEGER, "
+                "category_name VARCHAR(100), date DATETIME NOT NULL, source VARCHAR(20) NOT NULL, "
+                "source_file VARCHAR(500), is_recurring BOOLEAN, recurring_frequency VARCHAR(20), "
+                "recurrence_id INTEGER, notes TEXT, tags VARCHAR(500), created_at DATETIME NOT NULL)"
+            )
+            conn.execute(
+                "INSERT INTO transactions (description, amount, type, date, source, created_at) "
+                "VALUES ('Mercado', 120.5, 'expense', '2026-10-01', 'manual', '2026-10-01')"
+            )
+        conn.close()
+
+        db2 = Database(db_path=db_path)
+        db2.initialize()
+        with db2.session() as s:
+            cols = [r[1] for r in s.execute(text("PRAGMA table_info(transactions)"))]
+            row = s.execute(text("SELECT description, account_id FROM transactions")).one()
+            indexes = [r[1] for r in s.execute(text("PRAGMA index_list(transactions)"))]
+        assert "account_id" in cols
+        assert tuple(row) == ("Mercado", None)
+        assert "ix_transactions_account_id" in indexes
+        # Rodar de novo não faz nada
+        assert db2._add_missing_columns() == []
+        db2._engine.dispose()
 
     def test_database_init_failure(self, tmp_path):
         """E028: Falha na inicialização por problemas de IO."""

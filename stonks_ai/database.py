@@ -4,6 +4,7 @@ Gerenciamento do banco de dados SQLite via SQLAlchemy.
 Gerencia conexão, sessões, migrações e operações básicas de CRUD.
 """
 
+import logging
 import os
 import sqlite3
 from contextlib import contextmanager
@@ -16,6 +17,8 @@ from sqlalchemy.exc import DatabaseError as SA_DatabaseError, OperationalError
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from stonks_ai.config import config
+
+logger = logging.getLogger("stonks_ai.database")
 
 # Schema version for migration tracking
 SCHEMA_VERSION = 2
@@ -187,6 +190,7 @@ class Database:
                     raise
 
             Base.metadata.create_all(self._engine)
+            self._add_missing_columns()
 
             # Salva versão do schema após criar tabelas
             try:
@@ -211,6 +215,46 @@ class Database:
                 "DB-002",
                 f"Erro ao inicializar schema do banco: {e}",
             )
+
+    def _add_missing_columns(self) -> List[str]:
+        """
+        Migração leve: adiciona as colunas que um modelo ganhou depois que a tabela foi criada.
+
+        create_all só cria tabelas que não existem; um banco de uma versão antiga ficaria
+        sem as colunas novas e as consultas falhariam ("no such column"). Coluna NOT NULL
+        sem valor padrão não dá para adicionar no SQLite e é pulada (com aviso).
+        """
+        inspector = inspect(self._engine)
+        existing_tables = set(inspector.get_table_names())
+        added: List[str] = []
+        with self._engine.begin() as conn:
+            for table in Base.metadata.sorted_tables:
+                if table.name not in existing_tables:
+                    continue
+                present = {c["name"] for c in inspector.get_columns(table.name)}
+                new_columns = [c for c in table.columns if c.name not in present]
+                for column in new_columns:
+                    default = column.default.arg if column.default is not None and column.default.is_scalar else None
+                    if not column.nullable and default is None:
+                        logger.warning("Coluna %s.%s não pôde ser adicionada (NOT NULL sem padrão)",
+                                       table.name, column.name)
+                        continue
+                    col_type = column.type.compile(dialect=self._engine.dialect)
+                    ddl = f'ALTER TABLE "{table.name}" ADD COLUMN "{column.name}" {col_type}'
+                    if default is not None:
+                        ddl += f" DEFAULT {int(default) if isinstance(default, bool) else repr(default)}"
+                        if not column.nullable:
+                            ddl += " NOT NULL"
+                    conn.execute(text(ddl))
+                    added.append(f"{table.name}.{column.name}")
+                # Índices das colunas novas (os das antigas já existem)
+                names = {c.name for c in new_columns}
+                for index in table.indexes:
+                    if names & {c.name for c in index.columns}:
+                        index.create(conn, checkfirst=True)
+        if added:
+            logger.info("Colunas adicionadas ao banco: %s", ", ".join(added))
+        return added
 
     @contextmanager
     def session(self) -> Generator[Session, None, None]:
