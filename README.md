@@ -350,6 +350,9 @@ Os testes rodam a cada push no GitHub Actions (`.github/workflows/testes.yml`), 
 - [x] **IA só local** — IAs na nuvem (DeepSeek, OpenAI) removidas: gratuito e nada sai do computador (ADR 025)
 - [x] **IA que consulta o app** — Cotações, indicadores, gastos, contas, carteira, metas, orçamento, watchlist e calculadora no chat; modelo padrão `qwen2.5:3b`, escolhido por medição (ADR 026)
 
+### 🔜 Próximos
+1. [ ] **IA que lança no app, com confirmação** — "anota um gasto de R$ 50 no mercado", "aporta R$ 200 na meta da viagem", "põe a WEGE3 na watchlist": a IA prepara a ação e a tela mostra um botão para confirmar antes de gravar. Hoje as ferramentas do chat só leem (ADR 026)
+
 ### 📋 Depois
 - [ ] **Relatórios em PDF** — Se o Excel não bastar
 - [ ] **Criptografar o banco** — Protege os dados de verdade; o PIN só protege a tela
