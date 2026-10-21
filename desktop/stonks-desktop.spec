@@ -15,6 +15,7 @@ a = Analysis(
     pathex=[str(ROOT)],
     datas=[
         (str(ROOT / "desktop" / "frontend"), "desktop/frontend"),
+        (str(ROOT / "desktop" / "assets"), "desktop/assets"),
         (str(ROOT / "stonks_ai" / "knowledge" / "base_conhecimento.md"), "stonks_ai/knowledge"),
     ],
     hiddenimports=[
@@ -47,6 +48,7 @@ exe = EXE(
     [],
     exclude_binaries=True,
     name="StonksAI",
+    icon=str(ROOT / "desktop" / "assets" / "stonks.ico"),
     console=False,
     upx=False,
 )

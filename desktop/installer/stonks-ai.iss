@@ -32,6 +32,7 @@ WizardStyle=modern
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 UninstallDisplayIcon={app}\{#AppExe}
+SetupIconFile=..\assets\stonks.ico
 UninstallDisplayName={#AppName}
 ; Fecha o app aberto antes de atualizar
 CloseApplications=yes

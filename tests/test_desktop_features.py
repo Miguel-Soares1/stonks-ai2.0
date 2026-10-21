@@ -240,3 +240,20 @@ class TestCredentials:
         assert cfg.data["llm"]["api_key"] == credentials.KEYRING_MARKER
         assert credentials.resolve_api_key(credentials.KEYRING_MARKER) == "sk-antiga"
         assert credentials.migrate_plaintext_key(cfg) is False
+
+
+# ── Logo ────────────────────────────────────────────────────────────────
+
+def test_icon_file_has_every_size_and_matches_the_drawing(tmp_path):
+    from PIL import Image
+
+    from desktop import icon
+
+    path = icon.write_ico(tmp_path / "stonks.ico")
+    with Image.open(path) as ico:
+        assert set(ico.info["sizes"]) == {(n, n) for n in icon.ICO_SIZES}
+    # O .ico do repositório (usado no executável e no instalador) está gerado
+    assert icon.ICON_PATH.exists()
+    img = icon.image(32)
+    assert img.getpixel((2, 16))[:3] == icon.BLUE[:3]        # fundo azul
+    assert img.getpixel((0, 0))[3] == 0                        # canto arredondado transparente

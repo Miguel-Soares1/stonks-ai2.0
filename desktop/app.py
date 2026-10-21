@@ -23,6 +23,7 @@ import logging
 import uvicorn
 import webview
 
+from desktop.icon import ICON_PATH
 from desktop.single_instance import SingleInstance
 from stonks_ai import price_alerts
 from stonks_ai.config import DATA_DIR, config
@@ -92,8 +93,20 @@ def _watch_prices(notify, stop: threading.Event) -> None:
         stop.wait(price_alerts.CHECK_INTERVAL_SECONDS)
 
 
+def _set_app_id() -> None:
+    """Barra de tarefas com a logo do app, não a do python.exe (que ela usaria rodando pelo código-fonte)."""
+    if sys.platform == "win32":
+        try:
+            import ctypes
+
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("StonksAI.Desktop")
+        except Exception:
+            pass
+
+
 def main() -> None:
     _redirect_output_if_windowed()
+    _set_app_id()
     start_hidden = "--tray" in sys.argv[1:]
 
     # Já está rodando (talvez escondido na bandeja): pede para mostrar a janela e sai
@@ -155,7 +168,8 @@ def main() -> None:
     threading.Thread(target=_watch_prices, args=(tray.notify, stop_watch), daemon=True, name="price-alerts").start()
     try:
         # private_mode: a WebView não guarda cache, cookies nem histórico em disco
-        webview.start(private_mode=True)
+        # icon: sem ele, a janela pega o ícone do executável (o do Python, rodando pelo código-fonte)
+        webview.start(private_mode=True, icon=str(ICON_PATH) if ICON_PATH.exists() else None)
     finally:
         stop_watch.set()
         tray.stop()

@@ -16,7 +16,7 @@ StonksAI.exe
 |---|---|---|
 | | Início | Saldo nas contas, quanto entrou e saiu, investimentos e patrimônio total (quando há carteira), o mês em uma frase, ritmo de gastos, insight do mês (calculado pelo código; a IA só explica se você pedir), saldo em 90 dias, receitas e despesas dos últimos 6 meses, recorrentes, metas, watchlist e resumo do mês pela IA |
 | Mercado | Ativos | Cotação, histórico (1M a 5A), fundamentos com explicação de cada indicador e análise pela IA. Abre pela busca **Ctrl K** |
-| | Watchlist | Ativos acompanhados, preço-alvo e distância até ele |
+| | Watchlist | Ativos acompanhados, preço-alvo e distância até ele. Com o app aberto ou na bandeja, uma notificação do Windows avisa quando um ativo chega ao preço-alvo |
 | | Comparar | De 2 a 5 ativos: desempenho em base 100, indicadores lado a lado e comparação pela IA |
 | Minhas finanças | Transações | Filtros, adicionar, editar e excluir. **Exportar Excel** do ano (transações, resumo por mês, despesas por categoria). Importar extrato pelo botão ou **arrastando o arquivo para a janela**. Transações recorrentes (semanal, quinzenal, mensal, anual) são lançadas sozinhas quando a data chega |
 | | Orçamento | Limite mensal por categoria e quanto já foi usado (substitui a aba Categorias). Regras de categoria aprendidas: ao corrigir a categoria de uma transação, o estabelecimento passa a ir sempre para ela |
@@ -25,9 +25,20 @@ StonksAI.exe
 | | Metas | Criar, editar, adicionar valor e acompanhar prazo |
 | | Alertas | Avisos de orçamento e metas; verificar agora e dispensar |
 | Assistente | Conversar com a IA | Chat com histórico; a resposta aparece enquanto é escrita. A mesma conversa abre num painel flutuante pelo botão **Perguntar à IA**, sem sair da tela atual |
-| | Ajustes | Provider e modelo de IA (lista os modelos do Ollama com o tamanho), bolsa padrão, informações do sistema |
+| | Ajustes | Provider e modelo de IA (lista os modelos do Ollama com o tamanho), bolsa padrão, PIN, backup, **segundo plano** (fechar a janela deixa o app na bandeja; abrir com o Windows) e informações do sistema |
 
 Todas as respostas da IA chegam em **streaming**: o primeiro trecho aparece em menos de 1 segundo, em vez de esperar a resposta inteira.
+
+## Bandeja e alertas de preço-alvo
+
+Fechar a janela deixa o app rodando no ícone da bandeja (perto do relógio). De lá ele verifica os
+preços-alvo da watchlist ao abrir e a cada 5 minutos no horário do pregão, e avisa com uma notificação
+do Windows. Clique no ícone para abrir a janela; **Sair**, no menu do ícone, encerra de verdade.
+
+- Abrir o atalho de novo com o app na bandeja só mostra a janela que já existe (uma instância por pasta de dados).
+- **Abrir com o Windows** (Ajustes → Segundo plano) inicia o app escondido na bandeja. Só no app instalado:
+  pelo código-fonte, o comando dependeria da pasta do projeto.
+- Para fechar a janela e encerrar o app de uma vez, desmarque "Ao fechar a janela, continuar na bandeja" em Ajustes → Segundo plano.
 
 ## Rodar em modo desenvolvimento
 
@@ -102,11 +113,16 @@ Rodando a API à mão (`uvicorn desktop.api:app`), não há token: use só para 
 
 ```
 desktop/
-├── app.py            # abre a janela e sobe a API
+├── app.py            # abre a janela, sobe a API e verifica os preços-alvo
 ├── api.py            # FastAPI: rotas + inicialização + frontend estático
 ├── state.py          # agentes compartilhados (recriados ao trocar a IA)
 ├── streaming.py      # respostas da IA em streaming sem travar o servidor
-├── routes/           # finance.py, market.py, assistant.py, settings.py
+├── tray.py           # ícone na bandeja e notificações
+├── icon.py           # desenho da logo; gera assets/stonks.ico
+├── single_instance.py, autostart.py, lock.py
+├── assets/stonks.ico # ícone da janela, do executável e do instalador
+├── installer/        # script do Inno Setup
+├── routes/           # finance, market, portfolio, reports, assistant, settings
 └── frontend/
     ├── index.html, styles.css
     └── js/
@@ -151,7 +167,23 @@ desktop/
 | `GET/POST /api/backups`, `POST /api/backups/{nome}/restore` | Listar, criar e restaurar backups |
 | `POST /api/backups/restore-file`, `POST /api/backups/open-folder` | Restaurar de um arquivo `.db`; abrir a pasta no Explorer |
 
+## Logo
+
+O desenho (quadrado azul com a linha do gráfico subindo) é um só em todo lugar:
+
+| Onde | De onde vem |
+|---|---|
+| Barra lateral e aba (favicon) | SVG em `desktop/frontend/index.html` |
+| Ícone da bandeja | `desktop/icon.py` (`image()`) |
+| Janela, barra de tarefas, executável e instalador | `desktop/assets/stonks.ico`, gerado por `desktop/icon.py` |
+
+Mudou o desenho? Altere o SVG e os pontos em `desktop/icon.py` e gere o `.ico` de novo com
+`python -m desktop.icon`. Rodando pelo código-fonte, a janela usa o `.ico` e um AppUserModelID próprio,
+senão o Windows mostraria a logo do Python na barra de tarefas.
+
 ## Próximos passos
 
-1. Assinar o executável e o instalador (reduz alertas do antivírus e do SmartScreen).
+O projeto é gratuito: nada que custe dinheiro entra (por isso o executável não é assinado; ver o README).
+
+1. Criptografar o banco.
 2. Windows Hello no lugar do PIN.

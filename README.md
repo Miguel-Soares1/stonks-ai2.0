@@ -355,11 +355,13 @@ Os testes rodam a cada push no GitHub Actions (`.github/workflows/testes.yml`), 
 - [ ] **Relatórios em PDF** — Se o Excel não bastar
 - [ ] **Criptografar o banco** — Protege os dados de verdade; o PIN só protege a tela
 - [ ] **Windows Hello** — Biometria no lugar do PIN
-- [ ] **Assinar o executável e o instalador** — Quando houver usuários de fora (custa um certificado)
 
 ### 🚫 Descartados (por enquanto)
+O projeto é **gratuito e sem custo para manter**: nada que dependa de pagamento entra no roadmap.
+
 | Ideia | Por quê |
 |---|---|
+| Assinar o executável e o instalador | Exige um certificado de assinatura de código, que é pago. Sem ele, o Windows mostra o aviso do SmartScreen na primeira instalação ("Mais informações" → "Executar assim mesmo") |
 | Interface TUI (Textual) | Seria a terceira interface; a CLI já cobre o modo texto e o Streamlit foi removido para ter uma só |
 | Modo servidor (API REST aberto) | A API existe, mas presa ao `127.0.0.1` e com token de propósito; abrir para a rede contraria o modelo de segurança |
 | Multi-idioma | O produto é brasileiro (B3, Pix, CDI, IR, bancos locais) |

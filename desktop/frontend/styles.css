@@ -123,7 +123,9 @@ code, .mono { font-family: Consolas, ui-monospace, monospace; font-size: 0.9em; 
   border-right: 1px solid var(--line);
   overflow-y: auto;
 }
-.brand { font: 650 18px/1 var(--font-display); padding: 4px 10px 20px; letter-spacing: -0.01em; }
+.brand { display: flex; align-items: center; gap: 10px; font: 650 18px/1 var(--font-display); padding: 4px 10px 20px; letter-spacing: -0.01em; }
+/* Mesmo desenho do ícone da janela e da bandeja (desktop/icon.py); cores fixas, sem herdar do tema */
+.brand-logo { width: 26px; height: 26px; flex: none; stroke: none; }
 .nav-group { font-size: 12.5px; color: var(--ink-3); padding: 18px 10px 6px; }
 .nav-item {
   display: flex;
