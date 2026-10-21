@@ -335,6 +335,7 @@ a.kpi:hover { border-color: var(--ink-3); }
 /* Gráficos */
 .chart { position: relative; min-height: 220px; }
 .chart-tall { min-height: 300px; }
+/* A altura vem no style do próprio SVG: o atributo height perderia para a regra dos ícones (svg { height: 18px }) */
 .chart svg { display: block; width: 100%; stroke: none; overflow: visible; }
 .chart .grid-line { stroke: var(--line); stroke-width: 1; }
 .chart .zero-line { stroke: var(--ink-3); stroke-width: 1; stroke-dasharray: 3 3; }
@@ -600,6 +601,8 @@ dialog::backdrop { background: rgba(14, 22, 38, 0.4); }
   .kpis-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .kpi-value { font-size: 24px; }
   .panel-wide { grid-column: span 2; }
+  /* Com 2 colunas, o par de um painel largo ficaria sozinho em meia linha */
+  .panel-wide + .panel:not(.panel-wide) { grid-column: 1 / -1; }
 }
 
 @media (max-width: 760px) {

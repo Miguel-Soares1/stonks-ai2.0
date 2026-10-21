@@ -82,7 +82,7 @@ export function lineChart(el, series, opts = {}) {
     const xTicks = [t0, t0 + (t1 - t0) / 2, t1];
     el.innerHTML = `
       ${multi ? `<ul class="legend">${prepared.map((s) => `<li><span class="swatch" style="background:${s.color}"></span>${esc(s.name)}</li>`).join("")}</ul>` : ""}
-      <svg role="img" aria-label="${esc(opts.label || "Gráfico de linha")}" height="${h}">
+      <svg role="img" aria-label="${esc(opts.label || "Gráfico de linha")}" height="${h}" style="height:${h}px">
         ${ticks.map((t) => `
           <line class="${t === opts.baseline ? "zero-line" : "grid-line"}" x1="${pad.l}" x2="${w - pad.r}" y1="${y(t)}" y2="${y(t)}"/>
           <text class="axis-label" x="${pad.l - 10}" y="${y(t) + 4}" text-anchor="end">${esc(yFormat(t))}</text>`).join("")}
@@ -163,7 +163,7 @@ export function groupedBars(el, groups, series, opts = {}) {
 
     el.innerHTML = `
       <ul class="legend">${series.map((s) => `<li><span class="swatch" style="background:${s.color}"></span>${esc(s.name)}</li>`).join("")}</ul>
-      <svg role="img" aria-label="${esc(opts.label || "Gráfico de barras")}" height="${h}">
+      <svg role="img" aria-label="${esc(opts.label || "Gráfico de barras")}" height="${h}" style="height:${h}px">
         ${ticks.map((t) => `
           <line class="grid-line" x1="${pad.l}" x2="${w - pad.r}" y1="${y(t)}" y2="${y(t)}"/>
           <text class="axis-label" x="${pad.l - 10}" y="${y(t) + 4}" text-anchor="end">${esc(yFormat(t))}</text>`).join("")}
