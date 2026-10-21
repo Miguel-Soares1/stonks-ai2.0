@@ -88,6 +88,32 @@ const PROVIDERS = [
 const TIMEOUTS = [[0, "Só ao abrir o app"], [5, "Após 5 minutos sem uso"], [10, "Após 10 minutos sem uso"],
   [30, "Após 30 minutos sem uso"], [60, "Após 1 hora sem uso"]];
 
+// Bandeja do Windows: o app continua rodando com a janela fechada, para os alertas de preço-alvo
+function setupBackground(panel) {
+  const paint = (b) => {
+    panel.innerHTML = `
+      <h2>Segundo plano</h2>
+      <div class="form-grid">
+        <label class="check"><input type="checkbox" name="close_to_tray" ${b.close_to_tray ? "checked" : ""}>
+          Ao fechar a janela, continuar na bandeja do Windows (perto do relógio)</label>
+        <label class="check"><input type="checkbox" name="start_with_windows" ${b.start_with_windows ? "checked" : ""} ${b.autostart_supported ? "" : "disabled"}>
+          Abrir com o Windows, já na bandeja</label>
+      </div>
+      <p class="muted small">Na bandeja, o app avisa com uma notificação quando um ativo da watchlist chega ao preço-alvo
+        (verifica a cada 5 minutos no horário de pregão). Para fechar de vez, clique no ícone com o botão direito e escolha Sair.
+        ${b.autostart_supported ? "" : "Abrir com o Windows só funciona no app instalado."}</p>`;
+    panel.querySelectorAll("input[type=checkbox]").forEach((el) => el.addEventListener("change", async () => {
+      const body = {
+        close_to_tray: $("input[name=close_to_tray]", panel).checked,
+        start_with_windows: $("input[name=start_with_windows]", panel).checked,
+      };
+      try { paint(await api("/api/settings/background", { method: "PUT", body })); toast("Ajuste salvo."); }
+      catch (e) { toast(e.message, "error"); paint(b); }
+    }));
+  };
+  api("/api/settings/background").then(paint).catch((e) => { panel.innerHTML = `<p class="empty">${esc(e.message)}</p>`; });
+}
+
 function setupLock(panel, applyLockStatus) {
   const paint = (st) => {
     applyLockStatus(st);
@@ -177,6 +203,7 @@ export async function render(root, _params, { refreshStatus, applyLockStatus }) 
       <div class="toolbar"><button class="btn btn-primary" type="submit">Salvar ajustes</button></div>
     </form>
     <article class="panel" id="lock-panel"></article>
+    <article class="panel" id="background-panel"></article>
     <article class="panel">
       <div class="panel-head"><h2>Backup</h2>
         <div class="toolbar">
@@ -228,6 +255,7 @@ export async function render(root, _params, { refreshStatus, applyLockStatus }) 
   sync();
 
   setupLock($("#lock-panel", root), applyLockStatus);
+  setupBackground($("#background-panel", root));
   setupBackups(root);
 
   form.addEventListener("submit", async (e) => {

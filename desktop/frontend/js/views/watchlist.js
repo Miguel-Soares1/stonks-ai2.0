@@ -10,6 +10,8 @@ export async function render(root) {
       <label class="field"><span>Preço-alvo (opcional)</span><input name="target" type="number" step="0.01" min="0.01"></label>
       <button class="btn btn-primary" type="submit">${icon("plus")}<span>Adicionar</span></button>
     </form>
+    <p class="muted small">Com preço-alvo, o app avisa com uma notificação do Windows quando o preço chegar nele,
+      mesmo com a janela fechada (o app fica na bandeja; veja Ajustes → Segundo plano).</p>
     <article class="panel"><div id="list"><p class="empty">Buscando cotações…</p></div></article>`;
 
   $("#add-form", root).addEventListener("submit", async (e) => {

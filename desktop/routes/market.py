@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 from desktop.state import financial_agent
 from desktop.streaming import require_llm, stream_text
+from stonks_ai import price_alerts
 from stonks_ai.collectors.stocks.base import StockCollectorError
 from stonks_ai.database import db
 from stonks_ai.llm.prompts import FINANCIAL_ANALYSIS_SYSTEM_PROMPT, format_stock_analysis_prompt
@@ -161,7 +162,10 @@ def watchlist_target(item_id: int, body: TargetIn) -> Dict[str, Any]:
         if not item:
             raise HTTPException(status_code=404, detail="Item não encontrado.")
         item.target_price = body.target_price
-        return {"id": item.id, "target_price": item.target_price}
+        result = {"id": item.id, "target_price": item.target_price}
+    # O próximo cruzamento é contado a partir do preço da próxima verificação
+    price_alerts.reset(item_id)
+    return result
 
 
 @router.delete("/watchlist/{item_id}", status_code=204)
@@ -171,6 +175,7 @@ def watchlist_remove(item_id: int) -> None:
         if not item:
             raise HTTPException(status_code=404, detail="Item não encontrado.")
         session.delete(item)
+    price_alerts.reset(item_id)
 
 
 # ── Comparação ──────────────────────────────────────────────────────────

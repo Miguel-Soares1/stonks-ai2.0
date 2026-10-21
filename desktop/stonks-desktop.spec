@@ -29,6 +29,8 @@ a = Analysis(
         "keyring.backends.Windows",
         # pandas só importa o leitor de .xlsx na hora de ler (extratos e B3)
         "openpyxl",
+        # pystray escolhe o backend da bandeja em tempo de execução
+        "pystray._win32",
     ],
     excludes=[
         # Só a interface Streamlit/CLI usa estes; o app desktop não precisa

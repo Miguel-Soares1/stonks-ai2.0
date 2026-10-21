@@ -10,7 +10,7 @@ import httpx
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from desktop import lock
+from desktop import autostart, lock
 from desktop.state import financial_agent, reset_agents
 from stonks_ai import __version__, backup
 from stonks_ai.config import DATA_DIR, config
@@ -77,6 +77,35 @@ def save_hide_values(body: HideValuesIn) -> Dict[str, bool]:
     """Ocultar valores (R$ ••••) para usar o app perto de outras pessoas."""
     config.set(body.hide_values, "ui", "hide_values")
     return {"hide_values": body.hide_values}
+
+
+class BackgroundIn(BaseModel):
+    close_to_tray: bool
+    start_with_windows: bool
+
+
+def _background() -> Dict[str, bool]:
+    return {
+        "close_to_tray": bool(config.get("desktop", "close_to_tray", default=True)),
+        "start_with_windows": autostart.is_enabled(),
+        "autostart_supported": autostart.supported(),
+    }
+
+
+@router.get("/settings/background")
+def background() -> Dict[str, bool]:
+    """Fechar a janela deixa o app na bandeja? Abrir com o Windows?"""
+    return _background()
+
+
+@router.put("/settings/background")
+def save_background(body: BackgroundIn) -> Dict[str, bool]:
+    config.set(body.close_to_tray, "desktop", "close_to_tray")
+    if autostart.supported():
+        autostart.set_enabled(body.start_with_windows)
+    elif body.start_with_windows:
+        raise HTTPException(status_code=422, detail="Abrir com o Windows só funciona no app instalado.")
+    return _background()
 
 
 @router.get("/settings")
