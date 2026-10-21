@@ -9,7 +9,8 @@ Preço médio pelo método da Receita Federal: compras somam quantidade e custo 
 vendas tiram cotas pelo preço médio e não mudam o preço médio; desdobramento soma cotas sem
 custo; bonificação soma cotas pelo custo atribuído; grupamento tira cotas sem mudar o custo.
 
-Por enquanto só ativos da B3 (ações, FIIs, ETFs e BDRs), todos em reais.
+Ativos da B3 (ações, FIIs, ETFs e BDRs) e as criptomoedas de stonks_ai/collectors/crypto.py,
+tudo em reais. Cripto só tem compra e venda, em frações (0,0035 BTC).
 """
 
 import hashlib
@@ -22,6 +23,7 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 from dateutil.relativedelta import relativedelta
 
+from stonks_ai.collectors.crypto import ASSETS as CRYPTO_ASSETS, is_crypto
 from stonks_ai.database import db
 from stonks_ai.models.investment import INCOME_KINDS, OPERATION_KINDS, InvestmentOperation
 
@@ -39,15 +41,19 @@ class PortfolioError(ValueError):
 
 
 def normalize_ticker(ticker: str) -> str:
-    """PETR4F (mercado fracionário) e petr4.sa viram PETR4."""
+    """PETR4F (mercado fracionário) e petr4.sa viram PETR4; btc-usd vira BTC."""
     t = ticker.strip().upper()
     if t.endswith(".SA"):
         t = t[:-3]
+    m = re.match(r"^([A-Z0-9]+)-(USD|BRL)$", t)
+    if m:
+        return m.group(1)
     m = re.match(r"^([A-Z]{4}\d{1,2})F$", t)
     return m.group(1) if m else t
 
 
 def is_supported_ticker(ticker: str) -> bool:
+    """Código da B3 (o importador dos extratos só aceita estes)."""
     return bool(TICKER_PATTERN.match(ticker))
 
 
@@ -69,7 +75,7 @@ class Position:
 
     def to_dict(self) -> Dict[str, Any]:
         d = asdict(self)
-        d["avg_price"] = round(self.avg_price, 6)
+        d["avg_price"] = round(self.avg_price, 8)  # SHIB custa R$ 0,00003
         return d
 
 
@@ -174,6 +180,10 @@ _collector = None
 
 def _default_fetch(ticker: str):
     global _collector
+    if is_crypto(ticker):
+        from stonks_ai.collectors import crypto
+
+        return crypto.get_quote(ticker)
     if _collector is None:
         from stonks_ai.collectors.stocks.b3 import B3Collector  # import tardio: yfinance é pesado
 
@@ -195,13 +205,16 @@ def add_operation(ticker: str, kind: str, day: date, quantity: float = 0.0, pric
                   fees: float = 0.0, amount: float = 0.0, notes: Optional[str] = None) -> InvestmentOperation:
     """Lança uma operação à mão, com as mesmas regras que valem para a importação."""
     ticker = normalize_ticker(ticker)
-    if not is_supported_ticker(ticker):
+    if not is_supported_ticker(ticker) and not is_crypto(ticker):
         raise PortfolioError(
-            f"{ticker} não é um código da B3. Por enquanto a carteira aceita ações, FIIs, ETFs e BDRs "
-            "(ex.: PETR4, HGLG11, BOVA11, AAPL34)."
+            f"{ticker} não é um código da B3 nem uma das criptomoedas aceitas. A carteira aceita ações, "
+            "FIIs, ETFs e BDRs (ex.: PETR4, HGLG11, BOVA11, AAPL34) e as criptomoedas "
+            f"{', '.join(CRYPTO_ASSETS)}."
         )
     if kind not in OPERATION_KINDS:
         raise PortfolioError("Tipo de operação inválido.")
+    if is_crypto(ticker) and kind not in ("buy", "sell"):
+        raise PortfolioError("Para criptomoedas, lance só compras e vendas.")
     if day > date.today():
         raise PortfolioError("A data da operação não pode estar no futuro.")
     if kind in INCOME_KINDS:
@@ -210,9 +223,9 @@ def add_operation(ticker: str, kind: str, day: date, quantity: float = 0.0, pric
         quantity, price, fees = 0.0, 0.0, 0.0
     else:
         if quantity <= 0:
-            raise PortfolioError("Informe a quantidade de cotas.")
+            raise PortfolioError("Informe a quantidade.")
         if kind in ("buy", "sell") and price <= 0:
-            raise PortfolioError("Informe o preço por cota.")
+            raise PortfolioError("Informe o preço por cota (ou por unidade, em cripto).")
         if kind == "grouping":
             price = 0.0
         amount = round(quantity * price, 2)
@@ -221,9 +234,10 @@ def add_operation(ticker: str, kind: str, day: date, quantity: float = 0.0, pric
         held = build_positions(list_operations(ticker)).get(ticker)
         have = held.quantity if held else 0.0
         if quantity > have + EPS:
+            held_text = f"{have:.10g} {ticker}" if is_crypto(ticker) else f"{have:g} cotas de {ticker}"
             raise PortfolioError(
-                f"Pelas operações lançadas, você tem {have:g} cotas de {ticker}; não dá para vender "
-                f"{quantity:g}. Lance antes as compras que faltam."
+                f"Pelas operações lançadas, você tem {held_text}; não dá para vender "
+                f"{quantity:.10g}. Lance antes as compras que faltam."
             )
 
     op = InvestmentOperation(
@@ -293,7 +307,8 @@ def overview(fetch: Optional[Callable[[str], Any]] = None, today: Optional[date]
         market_total += value
         rows.append({
             **p.to_dict(),
-            "name": (q or {}).get("name") or "",
+            "name": (q or {}).get("name") or CRYPTO_ASSETS.get(p.ticker, ""),
+            "crypto": is_crypto(p.ticker),
             "price": price,
             "change_percent": (q or {}).get("change_percent"),
             "market_value": round(value, 2),

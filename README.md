@@ -348,9 +348,8 @@ Os testes rodam a cada push no GitHub Actions (`.github/workflows/testes.yml`), 
 - [x] **Exportação para Excel** — Transações do ano (resumo por mês e despesas por categoria) e relatório da carteira para o IR (ADR 023)
 - [x] **Rentabilidade contra CDI e Ibovespa** — Retorno ponderado no tempo, dia a dia, e "% do CDI" (ADR 022; contas explicadas em [`docs/CARTEIRA.md`](docs/CARTEIRA.md))
 
-### 🔜 Próximos (nesta ordem)
-1. [ ] **Alertas de preço alvo no desktop** — Notificação do Windows, com o app na bandeja do sistema (sem e-mail: exigiria guardar senha de SMTP)
-2. [ ] **Criptomoedas na carteira** — Começando pelo yfinance (BTC-USD, ETH-USD); CoinGecko só se faltar alguma moeda
+- [x] **Alertas de preço-alvo no desktop** — Notificação do Windows com o app na bandeja; abrir com o Windows (sem e-mail: exigiria guardar senha de SMTP)
+- [x] **Criptomoedas na carteira** — BTC, ETH e outras 17, em reais (par em dólar × câmbio), na rentabilidade e no relatório do IR (ADR 024)
 
 ### 📋 Depois
 - [ ] **Relatórios em PDF** — Se o Excel não bastar

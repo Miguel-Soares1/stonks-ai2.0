@@ -87,7 +87,7 @@ gravada na pasta Downloads:
 | Bens e direitos | Cada ativo que estava na carteira em 31/12 do ano anterior ou do ano: cotas e **custo** nas duas datas, preço médio, corretora (do extrato da B3) e um texto sugerido para a discriminação |
 | Proventos | Dividendos, JCP e rendimentos de FII recebidos no ano, por ativo |
 | Vendas | Cada venda com o custo pelo preço médio e o resultado |
-| Vendas por mês | Total vendido e resultado de cada mês |
+| Vendas por mês | Total vendido e resultado de cada mês, com bolsa e cripto em colunas separadas |
 
 - A situação em 31/12 é o custo de aquisição, não o valor de mercado: é o que a declaração pede.
 - Ativo comprado e vendido dentro do mesmo ano não aparece em Bens e direitos (não estava na carteira
@@ -95,6 +95,24 @@ gravada na pasta Downloads:
 - O relatório **não calcula imposto nem DARF**: a isenção de R$ 20 mil por mês vale só para ações, e o
   app não separa ações de FIIs, ETFs e units pelo código (todos podem terminar em 11).
 - Totais são fórmulas (`=SOMA`): se você corrigir uma linha na planilha, o total acompanha.
+- Criptomoedas vão no grupo 08 de Bens e direitos (Bitcoin código 01, outras moedas 02, stablecoins 03),
+  e a discriminação sugerida traz o custo total em vez do preço médio (o da SHIB é R$ 0,00008). A isenção
+  das vendas de cripto (R$ 35 mil no mês, somando todas as moedas, pela regra atual) é separada da
+  isenção das ações, por isso a aba Vendas por mês separa as duas.
+
+## 4.1. Criptomoedas
+
+A carteira aceita as principais criptomoedas (BTC, ETH, SOL, XRP, BNB, ADA, DOGE, LTC, LINK, AVAX,
+DOT, TRX, BCH, XLM, SHIB, ATOM, NEAR, USDT e USDC; a lista está em `stonks_ai/collectors/crypto.py`).
+
+- Só compras e vendas, em frações: 0,0035 BTC. O preço médio segue as mesmas regras das ações.
+- **Preço em reais = preço em dólar × câmbio do mesmo dia.** O Yahoo Finance não tem os pares em reais
+  (BTC-BRL), então o app busca BTC-USD e o câmbio BRL=X. Cripto negocia todo dia e o câmbio só em dia
+  útil: no fim de semana vale o câmbio de sexta.
+- A variação do dia é desde o fechamento das 00h UTC (21h de Brasília) e inclui a variação do dólar:
+  USDT "sobe" quando o dólar sobe.
+- Moedas fora da lista não entram de propósito: o símbolo das moedas menores no Yahoo muda (UNI virou
+  UNI7083-USD), e um código errado mostraria o preço de outra moeda.
 
 ## 5. Rentabilidade com aportes ao longo do tempo
 

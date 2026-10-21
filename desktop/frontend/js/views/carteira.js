@@ -1,4 +1,4 @@
-// Carteira: posições com preço médio e cotação, proventos e operações; importação da B3.
+// Carteira: posições com preço médio e cotação, proventos e operações; importação da B3; cripto.
 
 import { api, brl, brlCompact, changeHtml, confirmDialog, esc, exportReport, formDialog, fullDate, icon, money, num, toast, todayIso, valuesHidden, $ } from "../core.js";
 import { groupedBars, lineChart } from "../charts.js";
@@ -10,8 +10,16 @@ const KINDS = [
 const INCOME = new Set(["dividend", "jcp", "income"]);
 const OPS_PAGE = 30;
 
-// Cotas também dizem quanto a pessoa tem: somem junto com os valores
-const qty = (v) => (valuesHidden() ? "••" : num(v, Number.isInteger(v) ? 0 : 2));
+// Cotas também dizem quanto a pessoa tem: somem junto com os valores. Cripto vem em frações (0,0035 BTC)
+const qty = (v) => (valuesHidden() ? "••"
+  : v.toLocaleString("pt-BR", { maximumFractionDigits: Number.isInteger(v) ? 0 : v < 10 ? 8 : 2 }));
+// Preço de uma unidade: SHIB custa R$ 0,00003, que em centavos viraria R$ 0,00
+const unitMoney = (v) => (v > 0 && v < 1
+  ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumSignificantDigits: 4 }).format(v)
+  : money(v));
+const unitBrl = (v) => (valuesHidden() ? brl(v) : unitMoney(v));
+// Códigos da B3 (PETR4, HGLG11); o resto que a carteira aceita é cripto
+const B3_TICKER = /^[A-Z]{4}\d{1,2}F?$/;
 
 export async function render(root) {
   root.innerHTML = `
@@ -123,13 +131,14 @@ function renderPositions(root, o) {
     return;
   }
   el.innerHTML = `<div class="table-scroll"><table class="table">
-    <thead><tr><th>Ativo</th><th class="num">Cotas</th><th class="num">Preço médio</th><th class="num">Cotação</th>
+    <thead><tr><th>Ativo</th><th class="num">Quantidade</th><th class="num">Preço médio</th><th class="num">Cotação</th>
       <th class="num">Valor</th><th class="num">Resultado</th><th class="num">Na carteira</th><th class="num">Proventos 12m</th></tr></thead>
     <tbody>${o.positions.map((p) => `<tr>
-      <td><a class="ticker" href="#ativos/${encodeURIComponent(p.ticker)}">${esc(p.ticker)}</a><span class="ticker-name pf-name" title="${esc(p.name)}">${esc(p.name)}</span></td>
+      <td>${p.crypto ? `<span class="ticker">${esc(p.ticker)}</span>` // a tela Ativos só conhece bolsa
+        : `<a class="ticker" href="#ativos/${encodeURIComponent(p.ticker)}">${esc(p.ticker)}</a>`}<span class="ticker-name pf-name" title="${esc(p.name)}">${esc(p.name)}</span></td>
       <td class="num">${qty(p.quantity)}</td>
-      <td class="num">${brl(p.avg_price)}</td>
-      <td class="num">${p.price == null ? `<span class="muted">indisponível</span>` : `${money(p.price)} ${changeHtml(p.change_percent)}`}</td>
+      <td class="num">${unitBrl(p.avg_price)}</td>
+      <td class="num">${p.price == null ? `<span class="muted">indisponível</span>` : `${unitMoney(p.price)} ${changeHtml(p.change_percent)}`}</td>
       <td class="num">${brl(p.market_value)}</td>
       <td class="num">${p.result == null ? "—" : `<span class="${p.result >= 0 ? "up" : "down"}">${p.result >= 0 ? "▲" : "▼"} ${brl(Math.abs(p.result))}</span>
         <span class="muted small">${p.result_percent == null ? "" : `${p.result_percent >= 0 ? "+" : "−"}${num(Math.abs(p.result_percent), 1)}%`}</span>`}</td>
@@ -211,14 +220,14 @@ async function loadOperations(root, limit = OPS_PAGE) {
   }
   if (!ops.length) { el.innerHTML = `<p class="empty">Nenhuma operação lançada.</p>`; return; }
   el.innerHTML = `<div class="table-scroll"><table class="table">
-    <thead><tr><th>Data</th><th>Ativo</th><th>Operação</th><th class="num">Cotas</th><th class="num">Preço</th>
+    <thead><tr><th>Data</th><th>Ativo</th><th>Operação</th><th class="num">Quantidade</th><th class="num">Preço</th>
       <th class="num">Valor</th><th>Origem</th><th class="actions"><span class="sr-only">Ações</span></th></tr></thead>
     <tbody>${ops.slice(0, limit).map((op) => `<tr data-id="${op.id}">
       <td class="nowrap">${fullDate(op.date)}</td>
       <td><span class="ticker">${esc(op.ticker)}</span></td>
       <td>${esc(op.kind_label)}</td>
       <td class="num">${INCOME.has(op.kind) ? "—" : qty(op.quantity)}</td>
-      <td class="num">${op.price ? brl(op.price) : "—"}</td>
+      <td class="num">${op.price ? unitBrl(op.price) : "—"}</td>
       <td class="num ${INCOME.has(op.kind) ? "amount-in" : ""}">${op.amount ? brl(op.amount) : "—"}</td>
       <td class="muted small">${op.source === "b3" ? "B3" : "Manual"}</td>
       <td class="actions"><button class="icon-btn" data-act="delete" aria-label="Excluir ${esc(op.kind_label)} de ${esc(op.ticker)}">${icon("trash")}</button></td>
@@ -248,10 +257,10 @@ function addOperation(root) {
     title: "Lançar operação",
     fields: [
       { name: "kind", label: "Operação", type: "select", value: "buy", options: KINDS },
-      { name: "ticker", label: "Ativo", placeholder: "Ex.: PETR4, HGLG11, BOVA11", required: true, autofocus: true },
+      { name: "ticker", label: "Ativo", placeholder: "Ex.: PETR4, HGLG11, BOVA11 ou BTC", required: true, autofocus: true },
       { name: "date", label: "Data", type: "date", required: true, value: todayIso() },
       { name: "quantity", label: "Cotas", type: "number", step: "any", min: "0" },
-      { name: "price", label: "Preço por cota (R$)", type: "number", step: "0.01", min: "0" },
+      { name: "price", label: "Preço por cota (R$)", type: "number", step: "any", min: "0" },
       { name: "fees", label: "Taxas e corretagem (R$)", type: "number", step: "0.01", min: "0" },
       { name: "amount", label: "Valor recebido (R$)", type: "number", step: "0.01", min: "0" },
     ],
@@ -260,6 +269,8 @@ function addOperation(root) {
       // Cada tipo de operação pede campos diferentes
       const show = () => {
         const kind = form.elements.kind.value;
+        const ticker = form.elements.ticker.value.trim().toUpperCase();
+        const crypto = ticker.length >= 3 && !B3_TICKER.test(ticker);
         const visible = INCOME.has(kind) ? ["amount"]
           : kind === "grouping" ? ["quantity"]
           : kind === "bonus" ? ["quantity", "price"]
@@ -268,11 +279,13 @@ function addOperation(root) {
           form.elements[name].closest(".field").hidden = !visible.includes(name);
         }
         form.elements.quantity.closest(".field").firstElementChild.textContent =
-          kind === "grouping" ? "Cotas que deixaram de existir" : kind === "bonus" ? "Cotas recebidas" : "Cotas";
+          kind === "grouping" ? "Cotas que deixaram de existir" : kind === "bonus" ? "Cotas recebidas"
+          : crypto ? `Quantidade (${ticker.replace(/-(USD|BRL)$/, "")})` : "Cotas";
         form.elements.price.closest(".field").firstElementChild.textContent =
-          kind === "bonus" ? "Custo por cota (R$, 0 em desdobramento)" : "Preço por cota (R$)";
+          kind === "bonus" ? "Custo por cota (R$, 0 em desdobramento)" : crypto ? "Preço por unidade (R$)" : "Preço por cota (R$)";
       };
       form.elements.kind.addEventListener("change", show);
+      form.elements.ticker.addEventListener("input", show);
       show();
     },
     onSubmit: async (v) => {

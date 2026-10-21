@@ -223,6 +223,24 @@ def test_import_b3_statement_into_portfolio(page, tmp_path):
     assert page.errors == []
 
 
+def test_add_crypto_purchase_through_the_form(page):
+    go(page, "carteira")
+    page.click("#op-add")
+    page.fill("dialog.form-dialog input[name=ticker]", "btc")
+    # O formulário troca "Cotas" por quantidade da moeda
+    page.wait_for_selector("dialog.form-dialog .field:has-text('Quantidade (BTC)')")
+    page.fill("dialog.form-dialog input[name=quantity]", "0.0035")
+    page.fill("dialog.form-dialog input[name=price]", "600000")
+    page.locator("dialog.form-dialog button[type=submit]").click()
+    page.wait_for_selector(".toast:has-text('Compra de BTC lançada')")
+    row = page.locator("#pf-positions tr", has_text="BTC")
+    row.wait_for(timeout=60000)
+    assert "Bitcoin" in row.inner_text()
+    assert "0,0035" in row.inner_text()
+    assert not row.locator("a.ticker").count()           # a tela Ativos não conhece cripto
+    assert page.errors == []
+
+
 def test_export_transactions_to_excel(page):
     go(page, "transacoes")
     page.click("#export-btn")

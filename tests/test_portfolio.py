@@ -131,6 +131,51 @@ def test_overview_uses_quotes_and_falls_back_to_cost():
     assert sum(r["weight"] for r in o["positions"]) == pytest.approx(100)
 
 
+# ── Criptomoedas ────────────────────────────────────────────────────────
+
+def test_crypto_tickers():
+    assert portfolio.normalize_ticker("btc") == "BTC"
+    assert portfolio.normalize_ticker("eth-usd") == "ETH"
+    assert portfolio.normalize_ticker("SOL-BRL") == "SOL"
+    assert not portfolio.is_supported_ticker("BTC")      # o importador da B3 continua só com a bolsa
+
+
+def test_crypto_operations_in_fractions():
+    portfolio.add_operation("btc", "buy", date(2025, 1, 2), quantity=0.0035, price=600_000, fees=4.5)
+    portfolio.add_operation("BTC", "sell", date(2025, 3, 2), quantity=0.001, price=550_000)
+    p = portfolio.build_positions(portfolio.list_operations())["BTC"]
+    assert p.quantity == pytest.approx(0.0025)
+    assert p.avg_price == pytest.approx((0.0035 * 600_000 + 4.5) / 0.0035)
+    with pytest.raises(portfolio.PortfolioError, match="0.0025 BTC"):
+        portfolio.add_operation("BTC", "sell", date(2025, 4, 2), quantity=0.003, price=500_000)
+    with pytest.raises(portfolio.PortfolioError, match="só compras e vendas"):
+        portfolio.add_operation("ETH", "dividend", date(2025, 4, 2), amount=10)
+    with pytest.raises(portfolio.PortfolioError, match="criptomoedas aceitas"):
+        portfolio.add_operation("UNI", "buy", date(2025, 4, 2), quantity=1, price=10)
+
+
+def test_overview_marks_crypto_and_uses_its_quote():
+    portfolio.add_operation("ETH", "buy", date(2025, 1, 2), quantity=0.5, price=12_000)
+    o = portfolio.overview(fetch=lambda t: SimpleNamespace(price=13_000.0, change_percent=-2.0, name=""))
+    eth = o["positions"][0]
+    assert eth["crypto"] is True
+    assert eth["name"] == "Ethereum"                      # sem nome na cotação, vem da lista
+    assert eth["market_value"] == 6500
+
+
+def test_crypto_prices_in_reais_use_last_known_exchange_rate():
+    from stonks_ai.collectors import crypto
+
+    usd = {date(2025, 1, 3): 100.0, date(2025, 1, 4): 110.0, date(2025, 1, 6): 120.0}   # 4/1 é sábado
+    fx = {date(2025, 1, 2): 6.0, date(2025, 1, 3): 6.1, date(2025, 1, 6): 6.2}
+    assert crypto.to_brl(usd, fx) == {
+        date(2025, 1, 3): pytest.approx(610.0),
+        date(2025, 1, 4): pytest.approx(671.0),           # câmbio de sexta
+        date(2025, 1, 6): pytest.approx(744.0),
+    }
+    assert crypto.to_brl({date(2025, 1, 1): 1.0}, fx) == {}   # antes do primeiro câmbio conhecido
+
+
 # ── Importação da B3 ────────────────────────────────────────────────────
 
 NEGOCIACAO_HEADER = ["Data do Negócio", "Tipo de Movimentação", "Mercado", "Prazo/Vencimento",

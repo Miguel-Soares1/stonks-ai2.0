@@ -758,5 +758,35 @@ O roadmap pedia exportar transações e a posição em 31/12 para o IR. A janela
 
 ---
 
+## ADR 024: Criptomoedas na carteira, em reais pelo dólar e pelo câmbio
+
+**Status:** ✅ Aceito
+**Data:** 2026-10
+**Tipo:** 💰 Finanças
+
+### Contexto
+O roadmap pedia cripto dentro da carteira, começando pelo yfinance. Ao testar, o Yahoo não tinha mais os pares em reais (`BTC-BRL` responde "not found"), só os pares em dólar.
+
+### Decisão
+- **Preço em reais = par em dólar (`BTC-USD`) × câmbio (`BRL=X`) do mesmo dia**, no histórico e na cotação. No fim de semana vale o câmbio do último dia útil (`stonks_ai/collectors/crypto.py`).
+- **Lista fechada** de 19 moedas conferidas no Yahoo. Moedas menores têm símbolos instáveis (UNI virou `UNI7083-USD`); aceitar qualquer código arriscaria mostrar o preço de outra moeda.
+- Mesma tabela de operações, sem coluna nova: o tipo do ativo sai do código (`BTC` é cripto, `PETR4` é B3). Cripto aceita só compra e venda; quantidades fracionárias já cabiam no `Float`.
+- No relatório do IR, cripto tem o próprio texto em Bens e direitos (custo total, grupo 08) e colunas separadas em Vendas por mês, porque a isenção mensal é outra.
+
+### Alternativas Consideradas
+| Alternativa | Prós | Contras |
+|---|---|---|
+| **Dólar × câmbio no yfinance** | Uma fonte só, já usada no app; histórico longo | Duas consultas por moeda; variação do dia mistura cripto e dólar |
+| CoinGecko em reais | Preço direto em BRL, milhares de moedas | Outro serviço, limite de requisições sem chave, histórico gratuito limitado |
+| Qualquer código como cripto | Aceita tudo | Código errado vira outra moeda sem aviso |
+
+### Consequências
+- ✅ BTC, ETH e as principais entram no patrimônio, na rentabilidade contra CDI/Ibovespa e no relatório do IR
+- ✅ A rentabilidade usa o preço em reais de cada dia, como as ações
+- ❌ Moedas fora da lista não entram (CoinGecko fica para quando alguém pedir)
+- ❌ Staking, airdrops e taxas pagas em cripto não têm tipo próprio: lançam-se como compra (com o custo) ou não se lançam
+
+---
+
 > Este documento deve ser atualizado sempre que uma nova decisão arquitetural for tomada.  
 > Consulte também: [`MEMORY.md`](../MEMORY.md) | [`licoes.md`](../licoes.md)

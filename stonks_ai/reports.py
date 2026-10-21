@@ -18,6 +18,7 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 
+from stonks_ai.collectors.crypto import ASSETS as CRYPTO_ASSETS, STABLECOINS, is_crypto
 from stonks_ai.config import DATA_DIR
 from stonks_ai.database import db
 from stonks_ai.models.account import Account
@@ -154,6 +155,11 @@ def _brl(value: float) -> str:
     return "R$ " + f"{value:,.2f}".replace(",", "_").replace(".", ",").replace("_", ".")
 
 
+def _crypto_qty(value: float) -> str:
+    """0.0035 -> "0,0035" (até 8 casas, sem zeros à direita)."""
+    return f"{value:.8f}".rstrip("0").rstrip(".").replace(".", ",")
+
+
 def _brokers(ops) -> Dict[str, str]:
     """Corretoras por ativo, como vieram no extrato da B3 (observações manuais ficam de fora)."""
     found: Dict[str, set] = defaultdict(set)
@@ -186,13 +192,16 @@ def ir_workbook(year: int) -> Workbook:
         qb, cb = (b.quantity, round(b.cost, 2)) if b else (0.0, 0.0)
         qa, ca = (a.quantity, round(a.cost, 2)) if a else (0.0, 0.0)
         broker = brokers.get(t, "")
-        if qa > EPS:
+        if qa > EPS and is_crypto(t):
+            # Preço médio de cripto pode ser R$ 0,00003 (SHIB): o custo total diz mais
+            text = f"{_crypto_qty(qa)} {t} ({CRYPTO_ASSETS[t]}), custo total de aquisição de {_brl(ca)}."
+        elif qa > EPS:
             text = f"{qa:g} cotas de {t}, ao preço médio de {_brl(a.avg_price)}"
             text += f", custodiadas em {broker}." if broker else "."
         else:
             text = f"Posição em {t} vendida em {year}."
         warn = "Faltam compras antigas: o custo pode estar errado." if (a and a.incomplete) or (b and b.incomplete) else ""
-        ws.append([t, broker, qb, cb, qa, ca, round(a.avg_price, 4) if a and qa > EPS else None, text, warn])
+        ws.append([t, broker, qb, cb, qa, ca, round(a.avg_price, 8 if is_crypto(t) else 4) if a and qa > EPS else None, text, warn])
     _total_row(ws, "Total", [4, 6])
     _formats(ws, {3: QTY, 4: MONEY, 5: QTY, 6: MONEY, 7: MONEY},
              {1: 10, 2: 26, 3: 16, 4: 20, 5: 16, 6: 20, 7: 14, 8: 70, 9: 34})
@@ -214,15 +223,18 @@ def ir_workbook(year: int) -> Workbook:
     _total_row(ws, "Total", [4, 5, 6])
     _formats(ws, {1: DATE, 3: QTY, 4: MONEY, 5: MONEY, 6: MONEY}, {1: 12, 2: 10, 3: 10, 4: 16, 5: 20, 6: 16})
 
-    ws = _sheet(wb, "Vendas por mês", ["Mês", "Total vendido", "Resultado"])
-    sold, result = defaultdict(float), defaultdict(float)
+    # Bolsa e cripto à parte: cada uma tem a sua isenção mensal, sobre o total vendido no mês
+    ws = _sheet(wb, "Vendas por mês", ["Mês", "Bolsa: total vendido", "Bolsa: resultado",
+                                       "Cripto: total vendido", "Cripto: resultado"])
+    by_month: Dict[int, List[float]] = defaultdict(lambda: [0.0, 0.0, 0.0, 0.0])
     for s in sales:
-        sold[s["date"].month] += s["proceeds"]
-        result[s["date"].month] += s["result"]
-    for m in sorted(sold):
-        ws.append([f"{MONTHS[m - 1]}/{year}", sold[m], result[m]])
-    _total_row(ws, "Total", [2, 3])
-    _formats(ws, {2: MONEY, 3: MONEY}, {1: 12, 2: 16, 3: 16})
+        col = 2 if is_crypto(s["ticker"]) else 0
+        by_month[s["date"].month][col] += s["proceeds"]
+        by_month[s["date"].month][col + 1] += s["result"]
+    for m in sorted(by_month):
+        ws.append([f"{MONTHS[m - 1]}/{year}", *by_month[m]])
+    _total_row(ws, "Total", [2, 3, 4, 5])
+    _formats(ws, {c: MONEY for c in range(2, 6)}, {1: 12, 2: 20, 3: 18, 4: 20, 5: 18})
 
     _notes(wb, "Leia-me", [
         f"Carteira para o Imposto de Renda {year + 1} (ano-calendário {year})",
@@ -236,6 +248,10 @@ def ir_workbook(year: int) -> Workbook:
         "lançados (o extrato da B3 informa o líquido).",
         "Vendas: resultado pelo preço médio. Vendas de ações até R$ 20 mil no mês são isentas; FIIs, ETFs "
         "e BDRs não têm essa isenção. O app não separa esses tipos nem calcula o imposto (DARF).",
+        "Criptomoedas: em Bens e direitos, grupo 08 (Criptoativos): código 01 para Bitcoin, 02 para as "
+        f"outras moedas e 03 para stablecoins ({', '.join(sorted(STABLECOINS))}). Pela regra atual, vendas de "
+        "cripto até R$ 35 mil no mês, somando todas as moedas, são isentas; a aba Vendas por mês separa bolsa "
+        "e cripto. Confira se a regra mudou antes de declarar.",
         "Explicação das contas: docs/CARTEIRA.md no repositório do Stonks AI.",
     ])
     return wb

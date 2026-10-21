@@ -20,6 +20,7 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 from dateutil.relativedelta import relativedelta
 
+from stonks_ai.collectors import crypto
 from stonks_ai.models.investment import INCOME_KINDS, InvestmentOperation
 from stonks_ai.utils.portfolio import EPS, _sort_key, list_operations
 
@@ -186,6 +187,8 @@ def build(ops: List[InvestmentOperation], days: List[date], prices: Dict[str, Di
 
 def _ticker_prices(ticker: str, start: date, fetch) -> Tuple[str, Dict[date, float]]:
     try:
+        if crypto.is_crypto(ticker):
+            return ticker, crypto.daily_closes_brl(ticker, start, fetch)
         closes, splits = fetch(f"{ticker}.SA", start)
     except Exception:
         return ticker, {}

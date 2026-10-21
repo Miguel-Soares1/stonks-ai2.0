@@ -102,6 +102,22 @@ def test_ir_workbook():
     assert [r[0] for r in rows(wb["Vendas por mês"])] == ["Mar/2025", "Jun/2025", "Nov/2025", "Total"]
 
 
+def test_ir_workbook_with_crypto():
+    add_op("buy", (2025, 1, 10), ticker="BTC", qty=0.004, price=500_000)
+    add_op("sell", (2025, 6, 2), ticker="BTC", qty=0.001, price=600_000)
+    add_op("buy", (2025, 2, 1), ticker="SHIB", qty=10_000_000, price=0.00008)
+    add_op("buy", (2025, 2, 1), qty=10, price=30)
+    add_op("sell", (2025, 6, 3), qty=10, price=35)
+
+    wb = load_workbook(reports.save(reports.ir_workbook(2025), "ir.xlsx"))
+    bens = {r[0]: r for r in rows(wb["Bens e direitos"]) if r[0] != "Total"}
+    assert bens["BTC"][7] == "0,003 BTC (Bitcoin), custo total de aquisição de R$ 1.500,00."
+    assert bens["SHIB"][6] == pytest.approx(0.00008)          # preço médio sem arredondar para centavos
+    junho = rows(wb["Vendas por mês"])[0]
+    assert junho == ["Jun/2025", 350, 50, 600, 100]            # bolsa e cripto em colunas separadas
+    assert "35 mil" in " ".join(str(r[0]) for r in wb["Leia-me"].iter_rows(values_only=True))
+
+
 def test_build_positions_collects_sales():
     sales = []
     portfolio.add_operation("ITSA4", "buy", date(2025, 1, 2), quantity=10, price=10)

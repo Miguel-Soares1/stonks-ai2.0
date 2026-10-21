@@ -113,6 +113,25 @@ def test_overview_with_fake_data():
     assert performance.overview(fetch_closes=closes, fetch_cdi=lambda s, e: {}) is not None
 
 
+def test_crypto_history_is_converted_to_reais():
+    portfolio.add_operation("BTC", "buy", date(2025, 1, 2), quantity=0.01, price=600_000)
+    days = [date(2025, 1, 2), date(2025, 1, 3)]
+    asked = []
+
+    def closes(symbol, start):
+        asked.append(symbol)
+        if symbol == "^BVSP":
+            return {days[0]: 100.0, days[1]: 100.0}, {}
+        if symbol == "BRL=X":
+            return {days[0]: 6.0, days[1]: 6.0}, {}
+        return {days[0]: 100_000.0, days[1]: 110_000.0}, {}   # BTC-USD
+
+    r = performance.overview(fetch_closes=closes, fetch_cdi=lambda s, e: {}, today=date(2025, 1, 3))
+    assert "BTC-USD" in asked and "BTC.SA" not in asked
+    assert r["without_history"] == []
+    assert r["windows"][0]["portfolio"] == 10.0                # 600 mil -> 660 mil em reais
+
+
 def test_performance_route(monkeypatch):
     pytest.importorskip("fastapi")
     from fastapi.testclient import TestClient
