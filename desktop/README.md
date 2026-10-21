@@ -14,12 +14,13 @@ StonksAI.exe
 
 | Área | Tela | O que faz |
 |---|---|---|
-| | Início | Saldo nas contas, quanto entrou e saiu, o mês em uma frase, ritmo de gastos, insight do mês (calculado pelo código; a IA só explica se você pedir), saldo em 90 dias, receitas e despesas dos últimos 6 meses, recorrentes, metas, watchlist e resumo do mês pela IA |
+| | Início | Saldo nas contas, quanto entrou e saiu, investimentos e patrimônio total (quando há carteira), o mês em uma frase, ritmo de gastos, insight do mês (calculado pelo código; a IA só explica se você pedir), saldo em 90 dias, receitas e despesas dos últimos 6 meses, recorrentes, metas, watchlist e resumo do mês pela IA |
 | Mercado | Ativos | Cotação, histórico (1M a 5A), fundamentos com explicação de cada indicador e análise pela IA. Abre pela busca **Ctrl K** |
 | | Watchlist | Ativos acompanhados, preço-alvo e distância até ele |
 | | Comparar | De 2 a 5 ativos: desempenho em base 100, indicadores lado a lado e comparação pela IA |
 | Minhas finanças | Transações | Filtros, adicionar, editar e excluir. Importar extrato pelo botão ou **arrastando o arquivo para a janela**. Transações recorrentes (semanal, quinzenal, mensal, anual) são lançadas sozinhas quando a data chega |
 | | Orçamento | Limite mensal por categoria e quanto já foi usado (substitui a aba Categorias). Regras de categoria aprendidas: ao corrigir a categoria de uma transação, o estabelecimento passa a ir sempre para ela |
+| | Carteira | Posições com preço médio, cotação, resultado e peso; proventos dos últimos 12 meses; histórico de operações. Importa os extratos de **Negociação** e **Movimentação** da Área do Investidor da B3 (pelo botão ou arrastando `negociacao-*.xlsx`/`movimentacao-*.xlsx` para a janela) e aceita operações lançadas à mão |
 | | Contas | Contas e cartões com saldo |
 | | Metas | Criar, editar, adicionar valor e acompanhar prazo |
 | | Alertas | Avisos de orçamento e metas; verificar agora e dispensar |
@@ -131,6 +132,9 @@ desktop/
 | `GET /api/compare/analysis?tickers=` | Comparação pela IA (streaming) |
 | `GET/POST /api/transactions`, `PUT/DELETE /api/transactions/{id}` | Transações |
 | `POST /api/import?filename=` | Importar extrato (o corpo é o arquivo) |
+| `GET /api/portfolio` | Posições com cotação, totais e proventos por mês |
+| `GET/POST /api/portfolio/operations`, `DELETE /api/portfolio/operations/{id}` | Operações da carteira |
+| `POST /api/portfolio/import?filename=` | Importar extrato da B3 (o corpo é o arquivo) |
 | `GET /api/categories`, `GET /api/budget`, `PUT /api/categories/{id}/budget` | Orçamento |
 | `GET/POST /api/accounts`, `PUT/DELETE /api/accounts/{id}` | Contas |
 | `GET/POST /api/goals`, `PUT/DELETE /api/goals/{id}`, `POST /api/goals/{id}/contribute` | Metas |

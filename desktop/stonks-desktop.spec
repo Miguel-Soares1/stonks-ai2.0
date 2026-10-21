@@ -27,6 +27,8 @@ a = Analysis(
         "uvicorn.lifespan.on",
         # keyring escolhe o backend em tempo de execução (cofre do Windows)
         "keyring.backends.Windows",
+        # pandas só importa o leitor de .xlsx na hora de ler (extratos e B3)
+        "openpyxl",
     ],
     excludes=[
         # Só a interface Streamlit/CLI usa estes; o app desktop não precisa

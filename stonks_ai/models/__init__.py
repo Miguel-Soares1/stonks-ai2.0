@@ -12,6 +12,7 @@ from stonks_ai.models.category import Category
 from stonks_ai.models.transaction import Transaction
 from stonks_ai.models.financial_goal import FinancialGoal
 from stonks_ai.models.alert import Alert, AlertConfig
+from stonks_ai.models.investment import InvestmentOperation
 
 # Lista usada pelo database.initialize() para criar todas as tabelas
 __all_models__ = [
@@ -24,6 +25,7 @@ __all_models__ = [
     FinancialGoal,
     Alert,
     AlertConfig,
+    InvestmentOperation,
 ]
 
 __all__ = [
@@ -36,4 +38,5 @@ __all__ = [
     "FinancialGoal",
     "Alert",
     "AlertConfig",
+    "InvestmentOperation",
 ]

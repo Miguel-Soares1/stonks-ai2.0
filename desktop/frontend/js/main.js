@@ -4,6 +4,7 @@
 import { api, setHideValues, valuesHidden, $, $$ } from "./core.js";
 import { ask, mountChat } from "./chat.js";
 import { importFile } from "./views/transacoes.js";
+import { importB3 } from "./views/carteira.js";
 
 // Cada tela é um módulo carregado na primeira visita
 const ROUTES = {
@@ -13,6 +14,7 @@ const ROUTES = {
   comparar: () => import("./views/comparar.js"),
   transacoes: () => import("./views/transacoes.js"),
   orcamento: () => import("./views/orcamento.js"),
+  carteira: () => import("./views/carteira.js"),
   contas: () => import("./views/contas.js"),
   metas: () => import("./views/metas.js"),
   alertas: () => import("./views/alertas.js"),
@@ -208,9 +210,17 @@ window.addEventListener("drop", async (e) => {
   e.preventDefault();
   dragDepth = 0;
   overlay.hidden = true;
-  const file = e.dataTransfer.files[0];
-  if (!file) return;
-  const result = await importFile(file);
+  const files = [...e.dataTransfer.files];
+  if (!files.length) return;
+  // Extratos da B3 vão para a carteira; o resto é extrato de banco
+  const b3 = files.filter((f) => /^(negociacao|movimentacao)/i.test(f.name));
+  if (b3.length) {
+    for (const f of b3) await importB3(f);
+    if (location.hash.startsWith("#carteira")) route();
+    else location.hash = "#carteira";
+    return;
+  }
+  const result = await importFile(files[0]);
   if (result && result.imported) {
     if (location.hash.startsWith("#transacoes")) route();
     else location.hash = "#transacoes";

@@ -666,5 +666,41 @@ A IA continua fora da importação. Quando há transações em "Outros", a tela 
 
 ---
 
+## ADR 021: Carteira calculada a partir das operações, com importação dos extratos da B3
+
+**Status:** ✅ Aceito
+**Data:** 2026-10
+**Tipo:** 💰 Finanças
+
+### Contexto
+O app mostrava cotações e finanças do dia a dia, mas não sabia o que a pessoa tem investido. Não há API de corretora para pessoa física no Brasil; a fonte confiável e gratuita é a **Área do Investidor da B3**, que exporta em Excel o extrato de **Negociação** (compras e vendas, desde novembro de 2019) e o de **Movimentação** (proventos, desdobramentos, bonificações, liquidações, renda fixa).
+
+### Decisão
+- Uma tabela só, `investment_operations` (compra, venda, dividendo, JCP, rendimento, desdobramento/bonificação, grupamento). **Posições não são guardadas**: quantidade, preço médio, lucro realizado e proventos são recalculados das operações a cada consulta (`stonks_ai/utils/portfolio.py`). Corrigir ou apagar uma operação antiga corrige tudo depois dela.
+- **Preço médio pelo método da Receita Federal:** taxas entram no custo da compra; vendas não mudam o preço médio; desdobramento soma cotas sem custo; bonificação soma pelo custo atribuído; grupamento tira cotas sem mudar o custo. Na mesma data, compras antes das vendas (day trade).
+- **Importador da B3** (`collectors/finance/b3_importer.py`) reconhece o arquivo pelo cabeçalho, não pelo nome. Compras e vendas vêm só da Negociação; as liquidações que aparecem na Movimentação dois dias depois são ignoradas, para não contar duas vezes. Ticker do fracionário (`PETR4F`) vira `PETR4`. Opções, termo, renda fixa, Tesouro, aluguel e frações são ignorados e listados no aviso da importação. Grupamentos não são importados (o formato varia); lançam-se à mão.
+- Cada linha importada ganha uma chave (`import_key`, hash da linha + ordem entre linhas idênticas): **importar o mesmo período de novo não duplica nada**, e duas compras iguais no mesmo dia continuam duas.
+- Só ativos da B3 (ações, units, FIIs, ETFs, BDRs), todos em reais. Sem cotação (sem internet), o ativo entra no patrimônio pelo custo e a tela avisa.
+- Venda maior que as compras conhecidas (compras anteriores a 2019) não trava: a posição é marcada como incompleta e o lucro é calculado só sobre as cotas conhecidas.
+- No Início, um cartão "Investimentos" com o valor da carteira e o patrimônio (contas + carteira), carregado à parte para as cotações não atrasarem o resto da tela.
+
+### Alternativas Consideradas
+| Alternativa | Prós | Contras |
+|---|---|---|
+| **Recalcular das operações** | Uma fonte de verdade; corrigir o passado é só editar uma linha | Recalcula a cada consulta (milissegundos para milhares de operações) |
+| Guardar a posição e atualizar a cada operação | Leitura direta | Apagar ou corrigir uma operação antiga exige reprocessar tudo de qualquer jeito |
+| Compras e vendas pela Movimentação (liquidação) | Um arquivo só | Data de liquidação (D+2) em vez da data do negócio; preço médio e IR pedem a data do pregão |
+| Integração com corretoras | Automático | Não existe API para pessoa física (ver Roadmap) |
+
+### Consequências
+- ✅ Dois arquivos da B3 montam a carteira inteira desde 2019, sem digitar nada
+- ✅ Reimportar é seguro; a tela diz o que foi ignorado e por quê
+- ✅ Preço médio igual ao que a Receita pede, base para o relatório de IR (exportação, próximo item do Roadmap)
+- ❌ Sem taxas de corretagem e emolumentos (a B3 não informa); quem quiser exatidão lança à mão
+- ❌ Rentabilidade contra CDI e Ibovespa ainda não existe (próximo passo)
+- ❌ Ativos fora da B3 e cripto ainda não entram
+
+---
+
 > Este documento deve ser atualizado sempre que uma nova decisão arquitetural for tomada.  
 > Consulte também: [`MEMORY.md`](../MEMORY.md) | [`licoes.md`](../licoes.md)

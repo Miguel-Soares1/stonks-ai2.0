@@ -5,6 +5,8 @@ import { groupedBars, lineChart } from "../charts.js";
 
 const today = new Date();
 const state = { year: today.getFullYear(), month: today.getMonth() + 1 };
+// Carteira e saldo das contas, para o cartão de investimentos (as cotações chegam depois do resto)
+const worth = { portfolio: null, accounts: 0 };
 
 export async function render(root) {
   root.innerHTML = `
@@ -35,6 +37,7 @@ export async function render(root) {
   loadMonth(root);
   loadMonths(root);
   loadWatchlist(root);
+  loadPortfolio(root);
 }
 
 function shiftMonth(root, delta) {
@@ -122,6 +125,7 @@ function renderKpis(root, d, isCurrent) {
         scheduled > 0 ? ` · mais ${brl(scheduled)} agendado` : ""}</span>`
     : p ? `${delta(cur, prev, upIsGood)} <span class="kpi-sub">vs. ${esc(prevName)}</span>` : "";
   const sched = d.scheduled || {};
+  worth.accounts = d.accounts_total;
   $("#kpis", root).innerHTML = `
     <a class="kpi" href="#contas">
       <span class="kpi-label">${icon("bank")} Saldo nas contas</span>
@@ -137,7 +141,30 @@ function renderKpis(root, d, isCurrent) {
       <span class="kpi-label"><span class="kpi-dot out"></span> Saiu</span>
       <strong class="kpi-value">${brl(s.total_expense)}</strong>
       <span>${sub(s.total_expense, p && p.total_expense, false, sched.expense)}</span>
-    </div>`;
+    </div>
+    <a class="kpi" href="#carteira" id="kpi-invest" hidden></a>`;
+  renderInvest(root);
+}
+
+// Só aparece para quem tem carteira; o patrimônio soma contas e investimentos
+function renderInvest(root) {
+  const card = $("#kpi-invest", root);
+  const t = worth.portfolio;
+  if (!card || !t || !t.operation_count) return;
+  const up = t.result >= 0;
+  card.innerHTML = `
+    <span class="kpi-label">${icon("pie")} Investimentos</span>
+    <strong class="kpi-value">${brl(t.market_value)}</strong>
+    <span class="kpi-sub">${t.result_percent == null ? "" : `<span class="kpi-delta ${up ? "up" : "down"}">${up ? "▲" : "▼"} ${Math.abs(t.result_percent).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%</span> · `}patrimônio ${brl(worth.accounts + t.market_value)}</span>`;
+  card.hidden = false;
+  $("#kpis", root).classList.add("kpis-4");
+}
+
+async function loadPortfolio(root) {
+  try {
+    worth.portfolio = (await api("/api/portfolio")).totals;
+    renderInvest(root);
+  } catch { /* sem carteira, sem cartão */ }
 }
 
 // Os números vêm do código (stonks_ai/utils/insights.py); a IA só explica, se o usuário pedir

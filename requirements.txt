@@ -4,6 +4,7 @@ questionary>=2.0
 sqlalchemy>=2.0
 yfinance>=0.2
 pandas>=2.0
+openpyxl>=3.1
 numpy>=1.24
 httpx>=0.25
 beautifulsoup4>=4.12

@@ -24,7 +24,7 @@ sync_api = pytest.importorskip("playwright.sync_api")
 
 REPO = Path(__file__).resolve().parent.parent
 VIEWS = ["inicio", "ativos", "watchlist", "comparar", "transacoes", "orcamento",
-         "contas", "metas", "alertas", "assistente", "ajustes"]
+         "carteira", "contas", "metas", "alertas", "assistente", "ajustes"]
 
 
 def _free_port() -> int:
@@ -200,3 +200,22 @@ def test_pin_lock_and_unlock(page, base_url):
         page.wait_for_selector("#view section")
     finally:
         call(base_url, "PUT", "/api/lock/pin", {"new_pin": "", "current_pin": "1234"})
+
+
+def test_import_b3_statement_into_portfolio(page, tmp_path):
+    import pandas as pd
+
+    path = tmp_path / "negociacao-2025.xlsx"
+    pd.DataFrame(
+        [["02/01/2025", "Compra", "Mercado à Vista", "-", "XP", "PETR4", 100, 30, 3000],
+         ["03/01/2025", "Compra", "Mercado Fracionário", "-", "XP", "ITSA4F", 7, 10, 70]],
+        columns=["Data do Negócio", "Tipo de Movimentação", "Mercado", "Prazo/Vencimento", "Instituição",
+                 "Código de Negociação", "Quantidade", "Preço", "Valor"],
+    ).to_excel(path, index=False)
+
+    go(page, "carteira")
+    page.set_input_files("#b3-input", str(path))
+    page.wait_for_selector(".toast:has-text('2 operações importadas do extrato de Negociação')")
+    page.wait_for_selector("#pf-positions td:has-text('ITSA4')", timeout=60000)
+    assert page.locator("#pf-ops tbody tr").count() == 2
+    assert page.errors == []

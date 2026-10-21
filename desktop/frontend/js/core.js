@@ -135,7 +135,7 @@ export function toast(message, kind = "ok") {
   el.className = `toast ${kind}`;
   el.textContent = message;
   region.append(el);
-  setTimeout(() => el.remove(), kind === "error" ? 7000 : 3500);
+  setTimeout(() => el.remove(), kind === "ok" ? 3500 : 7000);
 }
 
 // ── Diálogos ────────────────────────────────────────────
@@ -194,7 +194,8 @@ function fieldHtml(f) {
 }
 
 // Formulário em diálogo. onSubmit recebe os valores; se lançar erro, ele aparece no próprio diálogo.
-export function formDialog({ title, fields, submitLabel, onSubmit }) {
+// onOpen recebe o <form> depois de aberto (ex.: mostrar ou esconder campos conforme uma escolha).
+export function formDialog({ title, fields, submitLabel, onSubmit, onOpen }) {
   return new Promise((resolve) => {
     const dlg = buildDialog(`
       <form novalidate>
@@ -229,6 +230,7 @@ export function formDialog({ title, fields, submitLabel, onSubmit }) {
       }
     });
     dlg.showModal();
+    if (onOpen) onOpen(form);
     const first = $("[autofocus]", dlg) || $("input, select, textarea", dlg);
     if (first) first.focus();
   });
