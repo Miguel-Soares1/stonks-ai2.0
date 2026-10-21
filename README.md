@@ -33,6 +33,7 @@
 | 💡 **Insights do Mês** | Categoria que mais subiu e orçamento que vai estourar, calculados pelo código (a IA só explica) |
 | 🎯 **Metas e Orçamento** | Metas com prazo e limite mensal por categoria |
 | 🖥️ **App Desktop (Windows)** | Janela nativa com instalador, chat com IA em streaming, ocultar valores e bloqueio por PIN |
+| 📤 **Exportação para Excel** | Transações do ano e relatório da carteira para o Imposto de Renda (bens e direitos, proventos, vendas) |
 | 💾 **Backup** | Cópia semanal automática e restauração em um clique |
 | 📁 **Histórico Persistente** | Todas as consultas salvas em banco SQLite local |
 | 🛡️ **Tratamento Estruturado de Erros** | Matriz de erros com 34 códigos e soluções documentadas |
@@ -297,7 +298,7 @@ stonks-ai/
 | [`docs/CONFIGURACAO.md`](docs/CONFIGURACAO.md) | Todas as opções de configuração do YAML |
 | [`docs/EXEMPLOS.md`](docs/EXEMPLOS.md) | Exemplos práticos de uso |
 | [`docs/API.md`](docs/API.md) | Documentação da API interna para uso programático |
-| [`docs/adr.md`](docs/adr.md) | Architecture Decision Records (22 ADRs documentados) |
+| [`docs/adr.md`](docs/adr.md) | Architecture Decision Records (23 ADRs documentados) |
 | [`docs/CARTEIRA.md`](docs/CARTEIRA.md) | Como a carteira calcula: preço médio, importação da B3 e rentabilidade |
 | [`desktop/README.md`](desktop/README.md) | App desktop: telas, segurança, build, instalador e API local |
 | [`evals/README.md`](evals/README.md) | Como avaliar os modelos de IA locais |
@@ -344,14 +345,15 @@ Os testes rodam a cada push no GitHub Actions (`.github/workflows/testes.yml`), 
 - [x] **IA para estabelecimentos novos** — "Organizar com IA" chama o modelo local uma vez por estabelecimento em "Outros" (ADR 020)
 - [x] **Testes ponta a ponta e CI** — Playwright clicando no app; GitHub Actions no Windows a cada push
 - [x] **Carteira de Investimentos** — Importação dos extratos de Negociação e Movimentação da B3, preço médio, resultado, proventos e patrimônio total no Início (ADR 021)
+- [x] **Exportação para Excel** — Transações do ano (resumo por mês e despesas por categoria) e relatório da carteira para o IR (ADR 023)
 - [x] **Rentabilidade contra CDI e Ibovespa** — Retorno ponderado no tempo, dia a dia, e "% do CDI" (ADR 022; contas explicadas em [`docs/CARTEIRA.md`](docs/CARTEIRA.md))
 
 ### 🔜 Próximos (nesta ordem)
-1. [ ] **Exportação de Relatórios** — Excel primeiro (transações, resumo do mês, posição em 31/12 para o IR); PDF depois
-2. [ ] **Alertas de preço alvo no desktop** — Notificação do Windows, com o app na bandeja do sistema (sem e-mail: exigiria guardar senha de SMTP)
-3. [ ] **Criptomoedas na carteira** — Começando pelo yfinance (BTC-USD, ETH-USD); CoinGecko só se faltar alguma moeda
+1. [ ] **Alertas de preço alvo no desktop** — Notificação do Windows, com o app na bandeja do sistema (sem e-mail: exigiria guardar senha de SMTP)
+2. [ ] **Criptomoedas na carteira** — Começando pelo yfinance (BTC-USD, ETH-USD); CoinGecko só se faltar alguma moeda
 
 ### 📋 Depois
+- [ ] **Relatórios em PDF** — Se o Excel não bastar
 - [ ] **Criptografar o banco** — Protege os dados de verdade; o PIN só protege a tela
 - [ ] **Windows Hello** — Biometria no lugar do PIN
 - [ ] **Assinar o executável e o instalador** — Quando houver usuários de fora (custa um certificado)

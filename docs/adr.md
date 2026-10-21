@@ -708,7 +708,7 @@ O app mostrava cotações e finanças do dia a dia, mas não sabia o que a pesso
 **Tipo:** 💰 Finanças
 
 ### Contexto
-O "resultado sobre o preço médio" da carteira não serve para comparar com o CDI e o Ibovespa: com aportes ao longo do tempo, ele mistura o desempenho dos ativos com o momento de cada aporte (exemplo em [`docs/CARTEIRA.md`](CARTEIRA.md), seção 4: o mesmo ano dá +3,6% ou +13% conforme o método).
+O "resultado sobre o preço médio" da carteira não serve para comparar com o CDI e o Ibovespa: com aportes ao longo do tempo, ele mistura o desempenho dos ativos com o momento de cada aporte (exemplo em [`docs/CARTEIRA.md`](CARTEIRA.md), seção 5: o mesmo ano dá +3,6% ou +13% conforme o método).
 
 ### Decisão
 - **Retorno ponderado no tempo (TWR), diário** (`stonks_ai/utils/performance.py`): em cada pregão, `(valor no fim + vendas + proventos) / (valor anterior + compras) − 1`, encadeado. É o sistema de cotas dos fundos.
@@ -731,6 +731,30 @@ O "resultado sobre o preço médio" da carteira não serve para comparar com o C
 - ❌ Proventos entram na data de pagamento (a do extrato), não na data ex: a curva oscila um pouco entre as duas
 - ❌ Provento recebido depois de vender tudo não entra (não há valor investido naquele dia)
 - ❌ Precisa de internet na primeira abertura de cada sessão do app
+
+---
+
+## ADR 023: Exportação para Excel gravada pelo app na pasta Downloads
+
+**Status:** ✅ Aceito
+**Data:** 2026-10
+**Tipo:** 🖥️ Interface
+
+### Contexto
+O roadmap pedia exportar transações e a posição em 31/12 para o IR. A janela do pywebview não baixa arquivos como um navegador, então um link de download não funciona no executável.
+
+### Decisão
+- A API monta a planilha com `openpyxl` (`stonks_ai/reports.py`) e **grava na pasta Downloads** (ou em `<dados>/exportacoes` se ela não existir), sem sobrescrever (`nome (2).xlsx`). A tela mostra onde salvou e oferece "Mostrar na pasta", que abre o Explorer com o arquivo selecionado.
+- A rota que abre o Explorer só aceita um **nome** de arquivo `.xlsx` que exista na pasta de exportação, nunca um caminho: assim ela não vira um jeito de abrir qualquer arquivo do computador.
+- Totais como fórmulas `SUM`, valores com formato de moeda, cabeçalho fixo e filtro na aba de transações.
+- O relatório do IR organiza os dados (custo em 31/12, proventos, vendas com resultado) e **não calcula imposto**: separar ações de FIIs, ETFs e units exigiria um cadastro de tipos que o app não tem, e um DARF errado é pior que nenhum.
+- Excel primeiro; PDF fica para depois, se fizer falta.
+
+### Consequências
+- ✅ Funciona igual no executável e no navegador em modo desenvolvimento
+- ✅ A planilha é editável: o usuário pode corrigir e os totais acompanham
+- ❌ O usuário não escolhe a pasta (é sempre Downloads); o diálogo mostra o caminho
+- ❌ Sem cálculo de imposto; a planilha avisa e aponta para os informes das corretoras
 
 ---
 

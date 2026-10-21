@@ -1,6 +1,6 @@
 // Transações: lista com filtros, adicionar/editar/excluir e importação de extrato.
 
-import { api, brl, confirmDialog, esc, formDialog, fullDate, icon, isoDate, toast, todayIso, $ } from "../core.js";
+import { api, brl, confirmDialog, esc, exportReport, formDialog, fullDate, icon, isoDate, toast, todayIso, $ } from "../core.js";
 
 const PAGE = 50;
 // Recorrentes: as próximas são criadas sozinhas quando a data chega
@@ -16,6 +16,7 @@ export async function render(root) {
       <div class="toolbar">
         <label class="btn" for="import-input">${icon("upload")}<span>Importar extrato</span></label>
         <input id="import-input" type="file" accept=".csv,.xlsx,.xls,.pdf" hidden>
+        <button class="btn" type="button" id="export-btn">${icon("download")}<span>Exportar Excel</span></button>
         <button class="btn btn-primary" type="button" id="add-btn">${icon("plus")}<span>Nova transação</span></button>
       </div>
     </div>
@@ -45,6 +46,10 @@ export async function render(root) {
     load(root, true);
   }));
   $("#add-btn", root).addEventListener("click", () => editTransaction(root));
+  $("#export-btn", root).addEventListener("click", () => exportReport({
+    title: "Exportar transações", path: "/api/export/transactions",
+    intro: "Uma planilha com as transações do ano, o resumo de cada mês e as despesas por categoria.",
+  }));
   $("#import-input", root).addEventListener("change", async (e) => {
     const file = e.target.files[0];
     e.target.value = "";

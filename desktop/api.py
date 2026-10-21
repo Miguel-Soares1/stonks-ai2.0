@@ -17,7 +17,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from desktop import lock
-from desktop.routes import assistant, finance, market, portfolio, settings
+from desktop.routes import assistant, finance, market, portfolio, reports, settings
 from desktop.state import personal_agent
 from stonks_ai import backup
 from stonks_ai.agents.base_agent import AgentError
@@ -98,7 +98,7 @@ async def protect(request: Request, call_next):
     return response
 
 
-for module in (finance, market, portfolio, assistant, settings):
+for module in (finance, market, portfolio, reports, assistant, settings):
     app.include_router(module.router)
 
 

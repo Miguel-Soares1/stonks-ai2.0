@@ -1,6 +1,6 @@
 // Carteira: posições com preço médio e cotação, proventos e operações; importação da B3.
 
-import { api, brl, brlCompact, changeHtml, confirmDialog, esc, formDialog, fullDate, icon, money, num, toast, todayIso, valuesHidden, $ } from "../core.js";
+import { api, brl, brlCompact, changeHtml, confirmDialog, esc, exportReport, formDialog, fullDate, icon, money, num, toast, todayIso, valuesHidden, $ } from "../core.js";
 import { groupedBars, lineChart } from "../charts.js";
 
 const KINDS = [
@@ -20,6 +20,7 @@ export async function render(root) {
       <div class="toolbar">
         <label class="btn" for="b3-input">${icon("upload")}<span>Importar da B3</span></label>
         <input id="b3-input" type="file" accept=".xlsx,.xls,.csv" multiple hidden>
+        <button class="btn" type="button" id="ir-btn">${icon("download")}<span>Relatório do IR</span></button>
         <button class="btn btn-primary" type="button" id="op-add">${icon("plus")}<span>Lançar operação</span></button>
       </div>
     </div>
@@ -47,6 +48,10 @@ export async function render(root) {
     <article class="panel"><div class="panel-head"><h2>Operações</h2></div><div id="pf-ops"></div></article>`;
 
   $("#op-add", root).addEventListener("click", () => addOperation(root));
+  $("#ir-btn", root).addEventListener("click", () => exportReport({
+    title: "Relatório para o Imposto de Renda", path: "/api/export/ir", year: new Date().getFullYear() - 1,
+    intro: "Posição em 31/12 pelo custo (bens e direitos), proventos e vendas do ano-calendário. Confira com os informes das corretoras antes de declarar.",
+  }));
   $("#b3-input", root).addEventListener("change", async (e) => {
     const files = [...e.target.files];
     e.target.value = "";
@@ -148,7 +153,7 @@ function renderIncome(root, months) {
   { yFormat: brlCompact, tooltipFormat: brl, label: "Proventos recebidos por mês" });
 }
 
-// Retorno ponderado no tempo: aportes e resgates não contam como ganho (docs/CARTEIRA.md, seção 4)
+// Retorno ponderado no tempo: aportes e resgates não contam como ganho (docs/CARTEIRA.md, seção 5)
 const monthYear = (iso) => new Intl.DateTimeFormat("pt-BR", { month: "short", year: "numeric" })
   .format(new Date(String(iso).slice(0, 10) + "T12:00:00")).replace(".", "");
 const signedPct = (v, digits = 1) => (v == null ? "—" : `${v >= 0 ? "+" : "−"}${num(Math.abs(v), digits)}%`);

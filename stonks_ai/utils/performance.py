@@ -1,7 +1,7 @@
 """
 Rentabilidade da carteira ponderada no tempo, comparada com o CDI e o Ibovespa.
 
-Explicação com exemplos em docs/CARTEIRA.md (seção 4). Resumo: para cada pregão desde a
+Explicação com exemplos em docs/CARTEIRA.md (seção 5). Resumo: para cada pregão desde a
 primeira operação, o retorno do dia é
 
     (valor no fim do dia + vendas + proventos) / (valor do dia anterior + compras) - 1

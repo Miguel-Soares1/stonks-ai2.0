@@ -18,9 +18,9 @@ StonksAI.exe
 | Mercado | Ativos | Cotação, histórico (1M a 5A), fundamentos com explicação de cada indicador e análise pela IA. Abre pela busca **Ctrl K** |
 | | Watchlist | Ativos acompanhados, preço-alvo e distância até ele |
 | | Comparar | De 2 a 5 ativos: desempenho em base 100, indicadores lado a lado e comparação pela IA |
-| Minhas finanças | Transações | Filtros, adicionar, editar e excluir. Importar extrato pelo botão ou **arrastando o arquivo para a janela**. Transações recorrentes (semanal, quinzenal, mensal, anual) são lançadas sozinhas quando a data chega |
+| Minhas finanças | Transações | Filtros, adicionar, editar e excluir. **Exportar Excel** do ano (transações, resumo por mês, despesas por categoria). Importar extrato pelo botão ou **arrastando o arquivo para a janela**. Transações recorrentes (semanal, quinzenal, mensal, anual) são lançadas sozinhas quando a data chega |
 | | Orçamento | Limite mensal por categoria e quanto já foi usado (substitui a aba Categorias). Regras de categoria aprendidas: ao corrigir a categoria de uma transação, o estabelecimento passa a ir sempre para ela |
-| | Carteira | Posições com preço médio, cotação, resultado e peso; rentabilidade comparada com CDI e Ibovespa; proventos dos últimos 12 meses; histórico de operações. Importa os extratos de **Negociação** e **Movimentação** da Área do Investidor da B3 (pelo botão ou arrastando `negociacao-*.xlsx`/`movimentacao-*.xlsx` para a janela) e aceita operações lançadas à mão |
+| | Carteira | Posições com preço médio, cotação, resultado e peso; rentabilidade comparada com CDI e Ibovespa; proventos dos últimos 12 meses; histórico de operações. Importa os extratos de **Negociação** e **Movimentação** da Área do Investidor da B3 (pelo botão ou arrastando `negociacao-*.xlsx`/`movimentacao-*.xlsx` para a janela) e aceita operações lançadas à mão. **Relatório do IR** em Excel |
 | | Contas | Contas e cartões com saldo |
 | | Metas | Criar, editar, adicionar valor e acompanhar prazo |
 | | Alertas | Avisos de orçamento e metas; verificar agora e dispensar |
@@ -136,6 +136,8 @@ desktop/
 | `GET /api/portfolio/performance` | Rentabilidade ponderada no tempo contra CDI e Ibovespa (série semanal e resumo por período) |
 | `GET/POST /api/portfolio/operations`, `DELETE /api/portfolio/operations/{id}` | Operações da carteira |
 | `POST /api/portfolio/import?filename=` | Importar extrato da B3 (o corpo é o arquivo) |
+| `POST /api/export/transactions`, `POST /api/export/ir` | Gera a planilha do ano (corpo: `{"year": 2025}`) na pasta Downloads |
+| `POST /api/export/show` | Abre o Explorer com a planilha selecionada (só arquivos da pasta de exportação) |
 | `GET /api/categories`, `GET /api/budget`, `PUT /api/categories/{id}/budget` | Orçamento |
 | `GET/POST /api/accounts`, `PUT/DELETE /api/accounts/{id}` | Contas |
 | `GET/POST /api/goals`, `PUT/DELETE /api/goals/{id}`, `POST /api/goals/{id}/contribute` | Metas |

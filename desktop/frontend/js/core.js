@@ -150,14 +150,14 @@ function buildDialog(inner) {
   return dlg;
 }
 
-export function confirmDialog({ title, message, confirmLabel, danger = true }) {
+export function confirmDialog({ title, message, confirmLabel, cancelLabel = "Cancelar", danger = true }) {
   return new Promise((resolve) => {
     const dlg = buildDialog(`
       <form method="dialog">
         <h2>${esc(title)}</h2>
         <p class="muted">${esc(message)}</p>
         <div class="dialog-actions">
-          <button class="btn" value="cancel">Cancelar</button>
+          <button class="btn" value="cancel">${esc(cancelLabel)}</button>
           <button class="btn ${danger ? "btn-danger" : "btn-primary"}" value="ok">${esc(confirmLabel)}</button>
         </div>
       </form>`);
@@ -195,11 +195,12 @@ function fieldHtml(f) {
 
 // Formulário em diálogo. onSubmit recebe os valores; se lançar erro, ele aparece no próprio diálogo.
 // onOpen recebe o <form> depois de aberto (ex.: mostrar ou esconder campos conforme uma escolha).
-export function formDialog({ title, fields, submitLabel, onSubmit, onOpen }) {
+export function formDialog({ title, intro, fields, submitLabel, onSubmit, onOpen }) {
   return new Promise((resolve) => {
     const dlg = buildDialog(`
       <form novalidate>
         <h2>${esc(title)}</h2>
+        ${intro ? `<p class="muted">${esc(intro)}</p>` : ""}
         <div class="form-grid">${fields.map(fieldHtml).join("")}</div>
         <p class="form-error" role="alert" hidden></p>
         <div class="dialog-actions">
@@ -234,6 +235,27 @@ export function formDialog({ title, fields, submitLabel, onSubmit, onOpen }) {
     const first = $("[autofocus]", dlg) || $("input, select, textarea", dlg);
     if (first) first.focus();
   });
+}
+
+// ── Exportar planilha ───────────────────────────────────
+// O app grava o arquivo na pasta Downloads (a janela não baixa arquivos como um navegador)
+
+export async function exportReport({ title, intro, path, year }) {
+  const now = new Date().getFullYear();
+  const years = Array.from({ length: 6 }, (_, i) => String(now - i));
+  const saved = await formDialog({
+    title, intro,
+    fields: [{ name: "year", label: "Ano", type: "select", value: String(year ?? now), options: years }],
+    submitLabel: "Gerar planilha",
+    onSubmit: (v) => api(path, { method: "POST", body: { year: Number(v.year) } }),
+  });
+  if (!saved) return null;
+  const show = await confirmDialog({
+    title: "Planilha salva", message: `${saved.name} foi salva em ${saved.folder}.`,
+    confirmLabel: "Mostrar na pasta", cancelLabel: "Fechar", danger: false,
+  });
+  if (show) api("/api/export/show", { method: "POST", body: { name: saved.name } }).catch((e) => toast(e.message, "error"));
+  return saved;
 }
 
 // ── Markdown simples e seguro (o texto é escapado antes) ─

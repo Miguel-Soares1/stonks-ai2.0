@@ -1,7 +1,7 @@
 # Como a carteira calcula
 
-Este documento explica as contas da tela **Carteira**: preço médio, posição, importação da B3
-e rentabilidade. As decisões de arquitetura estão no [ADR 021](adr.md#adr-021-carteira-calculada-a-partir-das-operações-com-importação-dos-extratos-da-b3);
+Este documento explica as contas da tela **Carteira**: preço médio, posição, importação da B3,
+relatório do Imposto de Renda e rentabilidade. As decisões de arquitetura estão no [ADR 021](adr.md#adr-021-carteira-calculada-a-partir-das-operações-com-importação-dos-extratos-da-b3);
 o código está em `stonks_ai/utils/portfolio.py`, `stonks_ai/utils/performance.py` e
 `stonks_ai/collectors/finance/b3_importer.py`.
 
@@ -76,7 +76,27 @@ Duas compras iguais no mesmo dia viram #1 e #2 e continuam duas; o mesmo arquivo
 as mesmas chaves, e o banco ignora as que já existem. Limite: se a B3 mudar algum texto da linha
 (o nome da corretora, por exemplo), a chave muda e a linha entra de novo.
 
-## 4. Rentabilidade com aportes ao longo do tempo
+## 4. Relatório para o Imposto de Renda
+
+O botão **Relatório do IR** da Carteira gera uma planilha do ano-calendário (`stonks_ai/reports.py`),
+gravada na pasta Downloads:
+
+| Aba | Conteúdo |
+|---|---|
+| Leia-me | O que cada aba significa e os cuidados |
+| Bens e direitos | Cada ativo que estava na carteira em 31/12 do ano anterior ou do ano: cotas e **custo** nas duas datas, preço médio, corretora (do extrato da B3) e um texto sugerido para a discriminação |
+| Proventos | Dividendos, JCP e rendimentos de FII recebidos no ano, por ativo |
+| Vendas | Cada venda com o custo pelo preço médio e o resultado |
+| Vendas por mês | Total vendido e resultado de cada mês |
+
+- A situação em 31/12 é o custo de aquisição, não o valor de mercado: é o que a declaração pede.
+- Ativo comprado e vendido dentro do mesmo ano não aparece em Bens e direitos (não estava na carteira
+  em nenhum 31/12), mas a venda aparece em Vendas.
+- O relatório **não calcula imposto nem DARF**: a isenção de R$ 20 mil por mês vale só para ações, e o
+  app não separa ações de FIIs, ETFs e units pelo código (todos podem terminar em 11).
+- Totais são fórmulas (`=SOMA`): se você corrigir uma linha na planilha, o total acompanha.
+
+## 5. Rentabilidade com aportes ao longo do tempo
 
 Quem investe aos poucos não tem uma rentabilidade "óbvia". Exemplo:
 

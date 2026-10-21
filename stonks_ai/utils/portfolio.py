@@ -77,8 +77,12 @@ def _sort_key(op: InvestmentOperation) -> Tuple:
     return (op.date, _DAY_ORDER.get(op.kind, 9), op.id or 0)
 
 
-def build_positions(ops: Iterable[InvestmentOperation], today: Optional[date] = None) -> Dict[str, Position]:
-    """Aplica as operações em ordem e devolve a posição de cada ativo (inclusive as zeradas)."""
+def build_positions(ops: Iterable[InvestmentOperation], today: Optional[date] = None,
+                    sales: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Position]:
+    """Aplica as operações em ordem e devolve a posição de cada ativo (inclusive as zeradas).
+
+    Com `sales`, acrescenta nela cada venda com o custo pelo preço médio e o resultado (relatório do IR).
+    """
     today = today or date.today()
     since_12m = today - relativedelta(months=12)
     positions: Dict[str, Position] = {}
@@ -102,6 +106,12 @@ def build_positions(ops: Iterable[InvestmentOperation], today: Optional[date] = 
             # Taxas e valor proporcionais às cotas conhecidas
             share = qty / op.quantity if op.quantity > EPS else 0.0
             p.realized += sold_value * share - qty * avg
+            if sales is not None:
+                sales.append({
+                    "date": day, "ticker": op.ticker, "quantity": op.quantity, "known_quantity": qty,
+                    "proceeds": round(sold_value, 2), "cost": round(qty * avg, 2),
+                    "result": round(sold_value * share - qty * avg, 2),
+                })
             p.cost -= qty * avg
             p.quantity -= qty
         elif op.kind == "bonus":

@@ -36,7 +36,9 @@ def _free_port() -> int:
 @pytest.fixture(scope="module")
 def base_url(tmp_path_factory):
     port = _free_port()
-    env = {**os.environ, "STONKS_DATA_DIR": str(tmp_path_factory.mktemp("dados")), "PYTHONIOENCODING": "utf-8"}
+    env = {**os.environ, "STONKS_DATA_DIR": str(tmp_path_factory.mktemp("dados")), "PYTHONIOENCODING": "utf-8",
+           # Exportações iriam para a pasta Downloads de quem roda os testes
+           "USERPROFILE": str(tmp_path_factory.mktemp("home")), "HOME": str(tmp_path_factory.mktemp("home2"))}
     env.pop("STONKS_API_TOKEN", None)
     log = open(tmp_path_factory.mktemp("log") / "server.log", "w")
     proc = subprocess.Popen(
@@ -218,4 +220,14 @@ def test_import_b3_statement_into_portfolio(page, tmp_path):
     page.wait_for_selector(".toast:has-text('2 operações importadas do extrato de Negociação')")
     page.wait_for_selector("#pf-positions td:has-text('ITSA4')", timeout=60000)
     assert page.locator("#pf-ops tbody tr").count() == 2
+    assert page.errors == []
+
+
+def test_export_transactions_to_excel(page):
+    go(page, "transacoes")
+    page.click("#export-btn")
+    page.locator("dialog.form-dialog button[type=submit]").click()
+    page.wait_for_selector("dialog.form-dialog h2:has-text('Planilha salva')")
+    assert ".xlsx foi salva em" in page.locator("dialog.form-dialog").inner_text()
+    page.click("dialog.form-dialog button[value=cancel]")
     assert page.errors == []

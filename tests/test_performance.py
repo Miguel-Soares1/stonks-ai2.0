@@ -1,4 +1,4 @@
-"""Testes da rentabilidade ponderada no tempo (docs/CARTEIRA.md, seção 4)."""
+"""Testes da rentabilidade ponderada no tempo (docs/CARTEIRA.md, seção 5)."""
 
 from datetime import date, datetime
 from types import SimpleNamespace
