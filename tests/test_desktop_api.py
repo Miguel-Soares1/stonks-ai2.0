@@ -15,7 +15,6 @@ def client(temp_db, monkeypatch):  # noqa: F811
     import desktop.api as api
 
     # Não mexe no config.yaml real durante os testes
-    monkeypatch.setattr(api, "migrate_plaintext_key", lambda cfg: False)
     with TestClient(api.app, base_url="http://127.0.0.1") as c:
         yield c
 

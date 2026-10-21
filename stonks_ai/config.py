@@ -53,20 +53,15 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "cache_ttl_minutes": 5,
     },
     "llm": {
-        "provider": "ollama",        # ollama | deepseek | openai | openai_compatible
-        "model": "llama3.2:3b",
+        # Sempre o Ollama, no computador (ADR 025)
+        "model": "qwen2.5:3b",
         "endpoint": "http://localhost:11434",
-        # Config para providers remotos (DeepSeek, OpenAI, etc.)
-        "api_key": "",               # API key ou ${ENV_VAR} para resolver do ambiente
-        "base_url": "",              # URL base da API (opcional para openai_compatible)
         "temperature": 0.3,
         "max_tokens": 2048,
         "timeout_seconds": 120,
         # Ollama: contexto menor = menos RAM; keep_alive curto libera a memória mais cedo
         "num_ctx": 4096,
         "keep_alive": "2m",
-        # Fallback para IA local quando API remota falha
-        "fallback_provider": "ollama",
     },
     "finance": {
         "default_currency": "BRL",
@@ -107,6 +102,8 @@ class Config:
                     loaded = yaml.safe_load(f) or {}
                     # Merge com defaults para garantir chaves novas
                     self._data = self._deep_merge(DEFAULT_CONFIG.copy(), loaded)
+                if self._drop_remote_llm():
+                    self.save()
             except yaml.YAMLError as e:
                 raise ConfigError(
                     f"CFG-001: Arquivo de configuração inválido. "
@@ -124,6 +121,25 @@ class Config:
         DATA_DIR.mkdir(parents=True, exist_ok=True)
         with open(self.config_path, "w", encoding="utf-8") as f:
             yaml.dump(self._data, f, default_flow_style=False, allow_unicode=True)
+
+    def _drop_remote_llm(self) -> bool:
+        """Tira do config as opções das IAs na nuvem, removidas na ADR 025.
+
+        Quem usava DeepSeek ou OpenAI volta para o Ollama com o modelo padrão (o nome do
+        modelo remoto não existe no Ollama). Devolve True se algo mudou.
+        """
+        llm = self._data.get("llm")
+        if not isinstance(llm, dict):
+            return False
+        changed = False
+        if llm.get("provider", "ollama") != "ollama":
+            llm["model"] = llm.get("local_model") or DEFAULT_CONFIG["llm"]["model"]
+            changed = True
+        for key in ("provider", "api_key", "base_url", "fallback_provider", "local_model"):
+            if key in llm:
+                del llm[key]
+                changed = True
+        return changed
 
     @staticmethod
     def _deep_merge(base: Dict, override: Dict) -> Dict:
@@ -183,32 +199,12 @@ class Config:
     @property
     def llm_model(self) -> str:
         """Nome do modelo LLM configurado."""
-        return self.get("llm", "model", default="llama3.2:3b")
+        return self.get("llm", "model", default="qwen2.5:3b")
 
     @property
     def llm_endpoint(self) -> str:
         """Endpoint do serviço Ollama."""
         return self.get("llm", "endpoint", default="http://localhost:11434")
-
-    @property
-    def llm_provider(self) -> str:
-        """Tipo de provider LLM configurado."""
-        return self.get("llm", "provider", default="ollama")
-
-    @property
-    def llm_api_key(self) -> str:
-        """API key para provider remoto (pode conter ${ENV_VAR})."""
-        return self.get("llm", "api_key", default="")
-
-    @property
-    def llm_base_url(self) -> str:
-        """URL base para API OpenAI-compatible."""
-        return self.get("llm", "base_url", default="")
-
-    @property
-    def llm_fallback_provider(self) -> str:
-        """Provider de fallback quando o primário falha."""
-        return self.get("llm", "fallback_provider", default="ollama")
 
 
 # Singleton global

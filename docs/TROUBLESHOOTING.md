@@ -22,7 +22,7 @@
 | Código | Erro | Causa | Solução |
 |--------|------|-------|---------|
 | **LLM-001** | Ollama não rodando | Serviço Ollama não iniciado | Execute `ollama serve` |
-| **LLM-002** | Modelo não encontrado | Modelo não foi baixado | Execute `ollama pull llama3.2:3b` |
+| **LLM-002** | Modelo não encontrado | Modelo não foi baixado | Execute `ollama pull qwen2.5:3b` |
 | **LLM-003** | GPU OOM | Memória GPU insuficiente | Use modelo menor: `ollama pull llama3.2:1b` |
 | **LLM-004** | Resposta inválida | Modelo retornou formato inesperado | Tente novamente |
 | **LLM-005** | Contexto excedido | Prompt muito longo | Reduza a quantidade de dados |
@@ -75,8 +75,8 @@ Depois de 3 PINs errados seguidos, cada erro novo aumenta a espera (5 s, 10 s, 2
 ### Restaurei um backup errado
 Antes de cada restauração, o app salva uma cópia de como os dados estavam, com o tipo **"Antes de restaurar"** na lista de Ajustes → Backup. Restaure essa cópia para voltar.
 
-### A chave da IA sumiu depois de atualizar
-Ela foi movida para o Gerenciador de Credenciais do Windows (entrada `StonksAI`), e o `config.yaml` passa a mostrar `api_key: '@keyring'`. Isso é esperado. Se você trocar de usuário do Windows ou de computador, a chave não vai junto: cole de novo em Ajustes.
+### A opção de IA na nuvem sumiu dos Ajustes
+Foi removida: o app usa só a IA local (Ollama), que é gratuita e não manda seus dados para fora (ADR 025). Se você tinha uma chave do DeepSeek ou da OpenAI salva por uma versão antiga, ela pode ter ficado no Gerenciador de Credenciais do Windows (entrada `StonksAI`); apague por lá se quiser.
 
 ### Uma transação sempre cai na categoria errada
 Edite a transação e escolha a categoria certa. O app aprende o estabelecimento, corrige as transações iguais e acerta nas próximas importações. Para desfazer uma regra, vá em Orçamento → Regras aprendidas.

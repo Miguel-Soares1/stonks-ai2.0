@@ -47,7 +47,7 @@
 pip install stonks-ai
 
 # 2. Baixar modelo LLM (opcional, para análise com IA)
-ollama pull llama3.2:3b
+ollama pull qwen2.5:3b
 
 # 3. Inicializar o sistema
 stonks init
@@ -102,8 +102,8 @@ python -m desktop.app
 
 - **Carteira:** importação dos extratos da B3, preço médio pelo método da Receita, resultado, proventos e rentabilidade contra CDI e Ibovespa
 - **Início:** saldo nas contas, quanto entrou e saiu, investimentos, ritmo de gastos, insight do mês, recorrentes, metas e watchlist
-- **Chat com a IA** em tela cheia ou num painel flutuante, com a resposta aparecendo enquanto é escrita
-- **Privacidade:** botão para ocultar valores (`R$ ••••`), bloqueio por PIN, chave da IA no Gerenciador de Credenciais do Windows
+- **Chat com a IA** em tela cheia ou num painel flutuante, com a resposta aparecendo enquanto é escrita. A IA consulta o próprio app: "quanto está a PETR4?", "quanto gastei com iFood este mês?", "como está minha meta?" (ADR 026)
+- **Privacidade:** botão para ocultar valores (`R$ ••••`), bloqueio por PIN; a IA roda só no seu computador
 - **Backup** semanal automático e restauração em Ajustes
 - Instalador em português, sem pedir administrador
 
@@ -120,7 +120,7 @@ database:
   path: ~/.stonks_ai/data/stonks_ai.db
 
 llm:
-  model: llama3.2:3b
+  model: qwen2.5:3b
   endpoint: http://localhost:11434
   temperature: 0.3
   max_tokens: 2048
@@ -181,10 +181,10 @@ O Stonks AI segue uma arquitetura **local-first** com padrão de **Agentes**:
         ┌──────────────────┼──────────────────┐
         │                  │                  │
   ┌─────▼──────┐  ┌───────▼───────┐  ┌───────▼───────┐
-  │ Collectors │  │ LLM (multi-   │  │   Models      │
-  │ B3 / NYSE  │  │ provider)     │  │  SQLAlchemy   │
-  │ CSV/Excel/ │  │ Ollama local  │  │  2.0 ORM      │
-  │   PDF      │  │ + nuvem opc.  │  │               │
+  │ Collectors │  │ LLM local     │  │   Models      │
+  │ B3 / NYSE  │  │ (Ollama)      │  │  SQLAlchemy   │
+  │ CSV/Excel/ │  │               │  │  2.0 ORM      │
+  │   PDF      │  │               │  │               │
   └────────────┘  └───────────────┘  └───────┬───────┘
                                              │
                                       ┌──────▼──────┐
@@ -195,7 +195,7 @@ O Stonks AI segue uma arquitetura **local-first** com padrão de **Agentes**:
 
 - **BaseAgent (ABC)** → [`FinancialAgent`](stonks_ai/agents/financial_agent.py) + [`PersonalFinanceAgent`](stonks_ai/agents/personal_finance_agent.py)
 - **Coletores modulares** para B3, NYSE/Nasdaq, e importação financeira (CSV, Excel, PDF)
-- **LLM multi-provider** (Ollama local, DeepSeek, OpenAI, compatíveis) com fallback para o local e base de conhecimento nos prompts
+- **IA só local** (Ollama), gratuita e sem enviar dados para fora, com base de conhecimento nos prompts (ADR 025)
 - **App desktop** com API local protegida por token por sessão, CSP e bloqueio opcional por PIN
 - **SQLite + SQLAlchemy 2.0** com WAL mode para performance
 - **Configuração centralizada** em [`data/config.yaml`](data/config.yaml)
@@ -215,7 +215,6 @@ stonks-ai/
 │   ├── main.py                   # CLI (Click + Rich)
 │   ├── config.py                 # Gerenciamento de configuração YAML
 │   ├── database.py               # SQLite + SQLAlchemy 2.0 (WAL mode)
-│   ├── credentials.py            # Chave da IA no cofre do sistema
 │   ├── backup.py                 # Backup e restauração do banco
 │   ├── knowledge/                # Base de conhecimento usada nos prompts
 │   ├── agents/                   # Agentes de IA (padrão ABC)
@@ -225,9 +224,9 @@ stonks-ai/
 │   ├── collectors/               # Coletores de dados
 │   │   ├── stocks/               # B3, NYSE/Nasdaq, Fundamentus
 │   │   └── finance/              # Importação CSV, Excel, PDF
-│   ├── llm/                      # Providers de IA + prompts
-│   │   ├── factory.py            # Escolhe o provider e monta o fallback
-│   │   ├── ollama_provider.py, openai_compatible_provider.py, ...
+│   ├── llm/                      # IA local (Ollama) + prompts
+│   │   ├── factory.py            # Cria o cliente do Ollama com o config.yaml
+│   │   ├── ollama_provider.py
 │   │   └── prompts.py            # Templates de prompt versionados
 │   ├── models/                   # Modelos ORM (SQLAlchemy)
 │   │   ├── stock_history.py
@@ -253,7 +252,7 @@ stonks-ai/
 │   ├── test_database.py
 │   ├── test_llm.py
 │   ├── test_validators.py
-│   ├── test_desktop_features.py  # Recorrentes, backup, cofre da chave
+│   ├── test_desktop_features.py  # Recorrentes, backup, IA só local, logo
 │   ├── test_desktop_api.py       # Rotas novas da API desktop
 │   └── test_rules_insights_lock.py  # Categorização, insights, PIN
 └── docs/                         # Documentação completa
@@ -282,7 +281,6 @@ stonks-ai/
 | [FastAPI](https://fastapi.tiangolo.com/) + [Uvicorn](https://www.uvicorn.org/) | 0.110+ / 0.29+ | API local do app desktop |
 | [pywebview](https://pywebview.flowrl.com/) | 5.0+ | Janela nativa (WebView2) |
 | [PyInstaller](https://pyinstaller.org/) + Inno Setup | 6.0+ / 6 | Executável e instalador |
-| [keyring](https://github.com/jaraco/keyring) | 24+ | Chave da IA no cofre do sistema |
 | [pydantic](https://docs.pydantic.dev/) | 2.0+ | Validação de dados |
 | [pytest](https://docs.pytest.org/) | 7.0+ | Testes automatizados |
 | [pytesseract](https://github.com/madmaze/pytesseract) | — | OCR para PDFs escaneados |
@@ -334,13 +332,12 @@ Os testes rodam a cada push no GitHub Actions (`.github/workflows/testes.yml`), 
 ## 🗺️ Roadmap
 
 ### ✅ Concluído (até v0.2.0)
-- [x] **Multi-Provider LLM** — Ollama (local) + DeepSeek + OpenAI + OpenAI-compatible com fallback automático
 - [x] **App desktop** — Substituiu a interface web em Streamlit (removida)
 - [x] **Finanças Pessoais** — Importação CSV/Excel/PDF, categorização, metas, alertas
 - [x] **Watchlist e Comparação** — Gerenciamento de ativos e comparação lado a lado
 - [x] **App Desktop** — Janela nativa para Windows com instalador (ADR 015)
 - [x] **Orçamento Mensal** — Limites por categoria, com aviso quando o ritmo vai estourar
-- [x] **Recorrentes, backup, PIN e cofre da chave** — ADRs 016 a 018
+- [x] **Recorrentes, backup e PIN** — ADRs 016 a 018
 - [x] **Categorização que aprende** — Regras por estabelecimento a partir das correções (ADR 020)
 - [x] **IA para estabelecimentos novos** — "Organizar com IA" chama o modelo local uma vez por estabelecimento em "Outros" (ADR 020)
 - [x] **Testes ponta a ponta e CI** — Playwright clicando no app; GitHub Actions no Windows a cada push
@@ -350,6 +347,8 @@ Os testes rodam a cada push no GitHub Actions (`.github/workflows/testes.yml`), 
 
 - [x] **Alertas de preço-alvo no desktop** — Notificação do Windows com o app na bandeja; abrir com o Windows (sem e-mail: exigiria guardar senha de SMTP)
 - [x] **Criptomoedas na carteira** — BTC, ETH e outras 17, em reais (par em dólar × câmbio), na rentabilidade e no relatório do IR (ADR 024)
+- [x] **IA só local** — IAs na nuvem (DeepSeek, OpenAI) removidas: gratuito e nada sai do computador (ADR 025)
+- [x] **IA que consulta o app** — Cotações, indicadores, gastos, contas, carteira, metas, orçamento, watchlist e calculadora no chat; modelo padrão `qwen2.5:3b`, escolhido por medição (ADR 026)
 
 ### 📋 Depois
 - [ ] **Relatórios em PDF** — Se o Excel não bastar
@@ -361,6 +360,7 @@ O projeto é **gratuito e sem custo para manter**: nada que dependa de pagamento
 
 | Ideia | Por quê |
 |---|---|
+| IAs na nuvem (DeepSeek, OpenAI) | Cobram por uso e mandam os dados para fora. Removidas em 21/10/2026 (ADR 025); o esforço vai para a IA local |
 | Assinar o executável e o instalador | Exige um certificado de assinatura de código, que é pago. Sem ele, o Windows mostra o aviso do SmartScreen na primeira instalação ("Mais informações" → "Executar assim mesmo") |
 | Interface TUI (Textual) | Seria a terceira interface; a CLI já cobre o modo texto e o Streamlit foi removido para ter uma só |
 | Modo servidor (API REST aberto) | A API existe, mas presa ao `127.0.0.1` e com token de propósito; abrir para a rede contraria o modelo de segurança |

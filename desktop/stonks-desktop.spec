@@ -26,8 +26,6 @@ a = Analysis(
         "uvicorn.protocols.http.auto",
         "uvicorn.protocols.websockets.auto",
         "uvicorn.lifespan.on",
-        # keyring escolhe o backend em tempo de execução (cofre do Windows)
-        "keyring.backends.Windows",
         # pandas só importa o leitor de .xlsx na hora de ler (extratos e B3)
         "openpyxl",
         # pystray escolhe o backend da bandeja em tempo de execução

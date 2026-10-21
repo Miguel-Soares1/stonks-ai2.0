@@ -39,7 +39,7 @@ Baixe o instalador em [ollama.com/download](https://ollama.com/download) e execu
 
 ```powershell
 # Baixar modelo recomendado
-ollama pull llama3.2:3b
+ollama pull qwen2.5:3b
 
 # Verificar se está rodando
 ollama list
@@ -84,7 +84,7 @@ pip install stonks-ai
 
 ```bash
 curl -fsSL https://ollama.com/install.sh | sh
-ollama pull llama3.2:3b
+ollama pull qwen2.5:3b
 ```
 
 ### 4. Inicializar
@@ -120,7 +120,7 @@ pip install stonks-ai
 ```bash
 brew install ollama
 ollama serve &
-ollama pull llama3.2:3b
+ollama pull qwen2.5:3b
 ```
 
 ### 4. Inicializar

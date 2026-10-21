@@ -1,4 +1,4 @@
-// Ajustes: qual IA usar (local ou remota), bloqueio por PIN, backup e informações do sistema.
+// Ajustes: modelo da IA local (Ollama), bloqueio por PIN, backup e informações do sistema.
 
 import { api, confirmDialog, esc, formDialog, icon, toast, $ } from "../core.js";
 
@@ -77,13 +77,6 @@ function setupBackups(root) {
   });
   load();
 }
-
-const PROVIDERS = [
-  ["ollama", "Ollama (no seu computador)"],
-  ["deepseek", "DeepSeek (nuvem)"],
-  ["openai", "OpenAI (nuvem)"],
-  ["openai_compatible", "Outro compatível com OpenAI (nuvem)"],
-];
 
 const TIMEOUTS = [[0, "Só ao abrir o app"], [5, "Após 5 minutos sem uso"], [10, "Após 10 minutos sem uso"],
   [30, "Após 30 minutos sem uso"], [60, "Após 1 hora sem uso"]];
@@ -182,18 +175,13 @@ export async function render(root, _params, { refreshStatus, applyLockStatus }) 
       <article class="panel">
         <h2>Inteligência artificial</h2>
         <div class="form-grid">
-          <label class="field"><span>Onde a IA roda</span>
-            <select name="provider">${PROVIDERS.map(([v, l]) => `<option value="${v}" ${v === s.provider ? "selected" : ""}>${l}</option>`).join("")}</select></label>
           <div id="model-field"></div>
-          <label class="field" data-for="ollama"><span>Endereço do Ollama</span><input name="endpoint" value="${esc(s.endpoint)}"></label>
-          <label class="field" data-for="openai_compatible"><span>URL da API</span><input name="base_url" value="${esc(s.base_url)}" placeholder="https://..."></label>
-          <label class="field" data-for="remote"><span>Chave da API</span>
-            <input name="api_key" type="password" autocomplete="off" placeholder="${s.has_api_key ? "Chave salva. Deixe vazio para manter." : "Cole sua chave ou use \${NOME_DA_VARIAVEL}"}"></label>
+          <label class="field"><span>Endereço do Ollama</span><input name="endpoint" value="${esc(s.endpoint)}"></label>
           <label class="field"><span>Criatividade (temperatura): <output id="temp-out">${s.temperature}</output></span>
             <input name="temperature" type="range" min="0" max="1.5" step="0.1" value="${s.temperature}"></label>
-          <label class="check" data-for="remote"><input type="checkbox" name="fallback_to_ollama" ${s.fallback_to_ollama ? "checked" : ""}> Usar o Ollama local se a IA na nuvem falhar</label>
         </div>
-        <p class="muted small" id="privacy-note"></p>
+        <p class="muted small">A IA roda no seu computador pelo Ollama: nada sai dele e não custa nada.
+          Modelos menores usam menos memória, mas podem errar mais.</p>
       </article>
       <article class="panel">
         <h2>Mercado</h2>
@@ -227,32 +215,14 @@ export async function render(root, _params, { refreshStatus, applyLockStatus }) 
     </article>`;
 
   const form = $("#settings", root);
-  const providerSel = $("select[name=provider]", form);
-  const modelField = $("#model-field", form);
-
-  const sync = () => {
-    const p = providerSel.value;
-    const remote = p !== "ollama";
-    form.querySelectorAll("[data-for]").forEach((el) => {
-      const f = el.dataset.for;
-      el.hidden = !(f === p || (f === "remote" && remote));
-    });
-    // No Ollama, lista os modelos instalados com o tamanho (quanto menor, menos memória)
-    if (p === "ollama" && models.length) {
-      const current = models.some((m) => m.name === s.model) ? s.model : models[0].name;
-      modelField.innerHTML = `<label class="field"><span>Modelo</span><select name="model">${models.map((m) =>
-        `<option value="${esc(m.name)}" ${m.name === current ? "selected" : ""}>${esc(m.name)} (${m.size_gb.toLocaleString("pt-BR")} GB)</option>`).join("")}</select></label>`;
-    } else {
-      modelField.innerHTML = `<label class="field"><span>Modelo</span><input name="model" required value="${esc(p === s.provider ? s.model : "")}"
-        placeholder="${p === "deepseek" ? "deepseek-chat" : p === "openai" ? "gpt-4o-mini" : "nome-do-modelo"}"></label>`;
-    }
-    $("#privacy-note", form).textContent = remote
-      ? "Com uma IA na nuvem, os dados usados em cada pergunta (cotações, resumos do mês) são enviados ao provedor escolhido."
-      : "Com o Ollama, tudo fica no seu computador. Modelos menores usam menos memória, mas podem errar mais.";
-  };
-  providerSel.addEventListener("change", sync);
+  // Lista os modelos instalados no Ollama com o tamanho (quanto menor, menos memória);
+  // com o Ollama fechado, um campo de texto
+  const current = models.some((m) => m.name === s.model) ? s.model : models[0]?.name;
+  $("#model-field", form).innerHTML = models.length
+    ? `<label class="field"><span>Modelo</span><select name="model">${models.map((m) =>
+      `<option value="${esc(m.name)}" ${m.name === current ? "selected" : ""}>${esc(m.name)} (${m.size_gb.toLocaleString("pt-BR")} GB)</option>`).join("")}</select></label>`
+    : `<label class="field"><span>Modelo</span><input name="model" required value="${esc(s.model)}" placeholder="qwen2.5:3b"></label>`;
   $("input[name=temperature]", form).addEventListener("input", (e) => { $("#temp-out", form).textContent = e.target.value; });
-  sync();
 
   setupLock($("#lock-panel", root), applyLockStatus);
   setupBackground($("#background-panel", root));
@@ -262,13 +232,9 @@ export async function render(root, _params, { refreshStatus, applyLockStatus }) 
     e.preventDefault();
     const v = Object.fromEntries(new FormData(form).entries());
     const body = {
-      provider: v.provider,
       model: v.model,
       temperature: Number(v.temperature),
       endpoint: v.endpoint || s.endpoint,
-      base_url: v.base_url || "",
-      api_key: v.api_key ? v.api_key : null,
-      fallback_to_ollama: v.provider === "ollama" ? s.fallback_to_ollama : Boolean(v.fallback_to_ollama),
       default_exchange: v.default_exchange,
     };
     try {

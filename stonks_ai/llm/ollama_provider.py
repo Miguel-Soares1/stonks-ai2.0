@@ -63,7 +63,7 @@ class OllamaProvider(BaseLLMProvider):
 
     def __init__(
         self,
-        model: str = "llama3.2:3b",
+        model: str = "qwen2.5:3b",
         endpoint: str = "http://localhost:11434",
         temperature: float = 0.3,
         max_tokens: int = 2048,
@@ -386,6 +386,51 @@ class OllamaProvider(BaseLLMProvider):
 
         except Exception as e:
             logger.error("Erro no streaming: %s", e)
+            if _is_connection_error(e):
+                self._available = False
+                self._last_check_success = False
+            raise LLMError("LLM-006", f"Erro no streaming: {e}")
+
+    async def stream_chat(
+        self,
+        messages: List[Dict[str, Any]],
+        tools: Optional[List[Dict[str, Any]]] = None,
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """Conversa em streaming com ferramentas: {"content": texto} ou {"tool_calls": [...]}.
+
+        Cada tool_call vem como {"name": ..., "arguments": {...}}. Modelo sem suporte a
+        ferramentas levanta LLMError("LLM-007"), para quem chamou tentar sem elas.
+        """
+        self._ensure_available()
+        import ollama
+
+        try:
+            client = ollama.Client(host=self.endpoint, timeout=self.timeout)
+            stream = client.chat(
+                model=self.model,
+                messages=messages,
+                tools=tools or None,
+                stream=True,
+                options=self._options(),
+                keep_alive=self.keep_alive,
+            )
+            for chunk in stream:
+                message = chunk.get("message") or {}
+                if message.get("content"):
+                    yield {"content": message["content"]}
+                calls = message.get("tool_calls") or []
+                if calls:
+                    yield {"tool_calls": [
+                        {"name": c["function"]["name"], "arguments": dict(c["function"].get("arguments") or {})}
+                        for c in calls
+                    ]}
+        except ollama.ResponseError as e:
+            if "does not support tools" in str(e).lower():
+                raise LLMError("LLM-007", f"O modelo '{self.model}' não usa ferramentas.")
+            raise LLMError("LLM-004", f"Erro na resposta do modelo: {e}")
+        except LLMError:
+            raise
+        except Exception as e:
             if _is_connection_error(e):
                 self._available = False
                 self._last_check_success = False

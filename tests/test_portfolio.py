@@ -265,7 +265,6 @@ def client(monkeypatch):
 
     import desktop.api as api
 
-    monkeypatch.setattr(api, "migrate_plaintext_key", lambda cfg: False)
     monkeypatch.setattr(portfolio, "_default_fetch",
                         lambda t: SimpleNamespace(price=40.0, change_percent=0.0, name=t))
     with TestClient(api.app, base_url="http://127.0.0.1") as c:

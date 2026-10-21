@@ -93,7 +93,6 @@ def test_watchlist_target_change_resets_and_background_settings(monkeypatch):
     from desktop import autostart
     from stonks_ai.config import config
 
-    monkeypatch.setattr(api, "migrate_plaintext_key", lambda cfg: False)
     saved = {}
     monkeypatch.setattr(config, "set", lambda value, *keys: saved.__setitem__(keys, value))
     monkeypatch.setattr(autostart, "supported", lambda: False)

@@ -379,13 +379,13 @@ Optamos por **YAML** como formato de configuração, armazenado em [`data/config
 | 010 | Type hints moderados | ✅ Aceito | Equilíbrio clareza/agilidade |
 | 011 | WebApp em arquivo único | ✅ Substituído | Refatorado em 12 módulos (ADR-013) |
 | 012 | Config YAML | ✅ Aceito | Legível, hierárquico, versionável |
-| 013 | Multi-Provider LLM + Fallback | ✅ Aceito | Ollama + DeepSeek + OpenAI, fallback chain |
+| 013 | Multi-Provider LLM + Fallback | ⛔ Substituído pela 025 | Ollama + DeepSeek + OpenAI, fallback chain |
 
 ---
 
 ## ADR 013: Arquitetura Multi-Provider LLM com Fallback Chain
 
-**Status:** ✅ Aceito  
+**Status:** ⛔ Substituído pela ADR 025 (2026-10): as IAs na nuvem foram removidas  
 **Data:** 2026-06  
 **Tipo:** 🏗️ Refatoração
 
@@ -525,7 +525,7 @@ Uma API local **FastAPI** sobre os agentes existentes, um frontend em **HTML/CSS
 
 ## ADR 016: Segredos e acesso local — chave da IA no cofre do sistema e bloqueio por PIN
 
-**Status:** ✅ Aceito
+**Status:** ✅ Aceito (o PIN). A parte do cofre saiu com a ADR 025: sem IA na nuvem, não há chave para guardar
 **Data:** 2026-10
 **Tipo:** 🔒 Segurança
 
@@ -785,6 +785,68 @@ O roadmap pedia cripto dentro da carteira, começando pelo yfinance. Ao testar, 
 - ✅ A rentabilidade usa o preço em reais de cada dia, como as ações
 - ❌ Moedas fora da lista não entram (CoinGecko fica para quando alguém pedir)
 - ❌ Staking, airdrops e taxas pagas em cripto não têm tipo próprio: lançam-se como compra (com o custo) ou não se lançam
+
+---
+
+## ADR 025: Só IA local (Ollama); IAs na nuvem removidas
+
+**Status:** ✅ Aceito
+**Data:** 2026-10
+**Tipo:** 🤖 IA
+
+### Contexto
+A ADR 013 trouxe DeepSeek, OpenAI e APIs compatíveis, com fallback para o Ollama. Nenhuma estava em uso (as duas pastas de dados do Miguel usavam o Ollama, sem chave salva), e o projeto passou a ter uma regra: **nada pago**. As IAs na nuvem cobram por uso e mandam cotações e resumos do mês para fora do computador.
+
+### Decisão
+- A IA é sempre o Ollama local. Saíram os providers remotos, o `FallbackChain`, o módulo do cofre de chaves (`stonks_ai/credentials.py`) e a dependência `keyring`.
+- Ajustes mostra só o modelo instalado, o endereço do Ollama e a temperatura.
+- Ao abrir, o `config.yaml` perde `provider`, `api_key`, `base_url`, `fallback_provider` e `local_model`. Quem usava um modelo remoto volta para o modelo padrão do Ollama (o nome remoto não existe lá).
+- O esforço de qualidade vai para a IA local: modelos pequenos, prompts com os dados calculados pelo código (ADR 019) e medição com `evals/`.
+
+### Consequências
+- ✅ Gratuito e privado por construção: não existe caminho para os dados saírem
+- ✅ Menos código e uma dependência a menos (`keyring`) para empacotar
+- ❌ A qualidade depende do computador: modelos maiores respondem melhor, mas usam mais memória
+- ❌ Sem o Ollama aberto, os recursos de IA ficam indisponíveis (o resto do app funciona)
+
+---
+
+## ADR 026: A IA do chat consulta o app (ferramentas), com qwen2.5:3b como padrão
+
+**Status:** ✅ Aceito
+**Data:** 2026-10
+**Tipo:** 🤖 IA
+
+### Contexto
+Perguntado "quanto está a PETR4?", o chat respondia que não tinha acesso a dados em tempo real, embora o próprio app busque cotações. Também não sabia nada das finanças do usuário. O pedido foi que a IA usasse o resto do app, só com a informação pedida.
+
+### Decisão
+- **Ferramentas** (`stonks_ai/llm/tools.py`), todas só de leitura: `cotacao`, `indicadores`, `resumo_do_mes`, `transacoes`, `contas`, `carteira`, `metas`, `orcamento`, `watchlist` e `calcular` (aritmética pela árvore da expressão, sem `eval`). Os resultados vêm curtos e já formatados ("R$ 1.234,56", "+0,36%"; P/L com "não é valor em reais").
+- **Conversa em rodadas** pelo `chat` do Ollama com `tools`, em streaming; até 3 rodadas de ferramentas e uma última sem elas. O que foi consultado vai para a tela entre caracteres `\x1e` e aparece como "Consultei: cotação de PETR4"; não volta para a IA como histórico.
+- **Proteções contra número inventado**, cada uma medida em `evals/tools_eval.py`:
+  - ativo citado na pergunta (código da B3 ou cripto pelo nome) é consultado pelo app antes do modelo, inclusive em "e dela?" (ativo da pergunta anterior);
+  - a conversa anterior vai como contexto no prompt de sistema, não como mensagens (com mensagens, o qwen2.5:3b copiava o formato e inventava o preço);
+  - mês citado e esquecido pelo modelo é completado; código de ativo inválido é recusado sem ir à internet;
+  - a tela avisa quando uma resposta tem valores em R$ sem nenhuma consulta ("podem ser só exemplos").
+- **Prompt de sistema do chat curto**, com as regras de segurança (não prever preços, golpes, não recomendação); o longo atrapalhava a escolha das ferramentas.
+- **Modelo padrão `qwen2.5:3b`** (antes `llama3.2:3b`): 93% contra 80% nas ferramentas, 100% contra 95% em conceito, mesma segurança e 0,4 GB a menos de memória. Quem já tem o app continua com o modelo que escolheu; troca em Ajustes.
+- Modelo sem suporte a ferramentas (ex.: `gemma3`) continua funcionando como antes, sem consultar o app.
+
+### Alternativas Consideradas
+| Alternativa | Prós | Contras |
+|---|---|---|
+| **Ferramentas + proteções no código** | O modelo decide nos casos ambíguos; o código garante os casos em que errar seria inventar um número | Mais código no caminho do chat |
+| Só ferramentas, confiando no modelo | Simples | Em pergunta de seguimento o modelo de 3B pulava a ferramenta e inventava o preço |
+| Pôr todos os dados no prompt sempre | Sem decisão do modelo | Prompt grande (lento e caro em memória) e cotações buscadas sem necessidade |
+| Modelo maior (7B+) | Escolhe melhor | 2 a 3 vezes mais memória; o objetivo é rodar bem em computador comum |
+
+### Consequências
+- ✅ "Quanto está a PETR4?", "quanto gastei com iFood?", "como está minha meta?" respondem com os números do app
+- ✅ O usuário vê o que a IA consultou; resposta sem consulta com valores em R$ ganha um aviso
+- ✅ Decisões medidas e repetíveis (`python -m evals.tools_eval`)
+- ❌ Uma pergunta com ativo citado sempre busca a cotação (cerca de 1 s), mesmo quando não era preciso
+- ❌ Categorização com o `qwen2.5:3b`: 81% contra 84% do `llama3.2:3b` (31 casos), porque o modelo é um só
+- ❌ Só leitura: a IA ainda não lança transações nem mexe em metas
 
 ---
 

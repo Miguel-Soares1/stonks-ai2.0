@@ -68,7 +68,7 @@ class BaseAgent(ABC):
             return (
                 "⚠️ IA local não disponível. Certifique-se de que o Ollama "
                 "está rodando (execute 'ollama serve' no terminal) e que "
-                "o modelo foi baixado (ex: ollama pull llama3.2:3b)."
+                "o modelo foi baixado (ex: ollama pull qwen2.5:3b)."
             )
 
         try:

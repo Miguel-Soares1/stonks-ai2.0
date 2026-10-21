@@ -5,7 +5,7 @@ from datetime import date, timedelta
 
 import pytest
 
-from stonks_ai import backup, credentials
+from stonks_ai import backup
 from stonks_ai.database import Database, db
 from stonks_ai.models.transaction import Transaction
 from stonks_ai.utils import recurrence
@@ -177,69 +177,41 @@ class TestBackup:
         assert len(autos) == backup.MAX_AUTO_BACKUPS
 
 
-# ── Chave da IA ─────────────────────────────────────────────────────────
+# ── IA só local (ADR 025) ───────────────────────────────────────────────
 
-class FakeKeyring:
-    def __init__(self):
-        self.store = {}
+class TestOnlyLocalAI:
+    def test_old_remote_config_goes_back_to_ollama(self, tmp_path):
+        import yaml
 
-    def set_password(self, service, user, value):
-        self.store[(service, user)] = value
+        from stonks_ai.config import Config
 
-    def get_password(self, service, user):
-        return self.store.get((service, user))
+        path = tmp_path / "config.yaml"
+        path.write_text(yaml.safe_dump({"llm": {
+            "provider": "deepseek", "model": "deepseek-chat", "api_key": "@keyring",
+            "base_url": "", "fallback_provider": "ollama", "temperature": 0.5,
+        }}), encoding="utf-8")
+        cfg = Config(path)
+        llm = cfg.get("llm")
+        assert llm["model"] == "qwen2.5:3b"              # deepseek-chat não existe no Ollama
+        assert llm["temperature"] == 0.5                  # o resto fica como estava
+        assert not {"provider", "api_key", "base_url", "fallback_provider"} & set(llm)
+        saved = yaml.safe_load(path.read_text(encoding="utf-8"))["llm"]
+        assert "api_key" not in saved and "provider" not in saved
 
-    def delete_password(self, service, user):
-        self.store.pop((service, user), None)
+    def test_local_config_keeps_its_model(self, tmp_path):
+        import yaml
 
+        from stonks_ai.config import Config
 
-class FakeConfig:
-    def __init__(self, key):
-        self.data = {"llm": {"api_key": key}}
+        path = tmp_path / "config.yaml"
+        path.write_text(yaml.safe_dump({"llm": {"provider": "ollama", "model": "qwen2.5:3b"}}), encoding="utf-8")
+        assert Config(path).get("llm", "model") == "qwen2.5:3b"
 
-    def get(self, *keys, default=None):
-        return self.data["llm"].get(keys[-1], default)
+    def test_client_is_always_ollama(self):
+        from stonks_ai.llm import OllamaProvider, create_llm_client
 
-    def set(self, value, *keys):
-        self.data["llm"][keys[-1]] = value
-
-
-class TestCredentials:
-    @pytest.fixture
-    def kr(self, monkeypatch):
-        fake = FakeKeyring()
-        monkeypatch.setattr(credentials, "_keyring", lambda: fake)
-        return fake
-
-    def test_key_goes_to_vault_not_config(self, kr):
-        stored = credentials.store_api_key("  sk-secreta  ")
-        assert stored == credentials.KEYRING_MARKER
-        assert credentials.resolve_api_key(stored) == "sk-secreta"
-
-    def test_env_var_reference_stays_in_config(self, kr):
-        assert credentials.store_api_key("${DEEPSEEK_API_KEY}") == "${DEEPSEEK_API_KEY}"
-        assert kr.store == {}
-
-    def test_empty_deletes_saved_key(self, kr):
-        credentials.store_api_key("sk-1")
-        assert credentials.store_api_key("") == ""
-        assert credentials.resolve_api_key(credentials.KEYRING_MARKER) == ""
-
-    def test_marker_round_trips(self, kr):
-        credentials.store_api_key("sk-1")
-        assert credentials.store_api_key(credentials.KEYRING_MARKER) == credentials.KEYRING_MARKER
-        assert credentials.resolve_api_key(credentials.KEYRING_MARKER) == "sk-1"
-
-    def test_without_vault_falls_back_to_config(self, monkeypatch):
-        monkeypatch.setattr(credentials, "_keyring", lambda: None)
-        assert credentials.store_api_key("sk-1") == "sk-1"
-
-    def test_migrates_plaintext_key(self, kr):
-        cfg = FakeConfig("sk-antiga")
-        assert credentials.migrate_plaintext_key(cfg) is True
-        assert cfg.data["llm"]["api_key"] == credentials.KEYRING_MARKER
-        assert credentials.resolve_api_key(credentials.KEYRING_MARKER) == "sk-antiga"
-        assert credentials.migrate_plaintext_key(cfg) is False
+        assert isinstance(create_llm_client(), OllamaProvider)
+        assert create_llm_client(temperature=0.0).temperature == 0.0
 
 
 # ── Logo ────────────────────────────────────────────────────────────────

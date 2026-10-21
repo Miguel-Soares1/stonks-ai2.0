@@ -138,7 +138,6 @@ def test_performance_route(monkeypatch):
 
     import desktop.api as api
 
-    monkeypatch.setattr(api, "migrate_plaintext_key", lambda cfg: False)
     with TestClient(api.app, base_url="http://127.0.0.1") as c:
         assert c.get("/api/portfolio/performance").json() is None
         portfolio.add_operation("PETR4", "buy", date(2025, 1, 2), quantity=10, price=30)

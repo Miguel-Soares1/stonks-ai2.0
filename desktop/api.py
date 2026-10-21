@@ -21,8 +21,6 @@ from desktop.routes import assistant, finance, market, portfolio, reports, setti
 from desktop.state import personal_agent
 from stonks_ai import backup
 from stonks_ai.agents.base_agent import AgentError
-from stonks_ai.config import config
-from stonks_ai.credentials import migrate_plaintext_key
 from stonks_ai.database import db
 from stonks_ai.utils import recurrence
 
@@ -60,9 +58,6 @@ async def lifespan(_: FastAPI):
         personal_agent().initialize()
     except AgentError as e:
         logger.warning("Inicialização das finanças pessoais falhou: %s", e)
-    # Chave da IA salva em texto puro por versões antigas vai para o cofre do Windows
-    if migrate_plaintext_key(config):
-        logger.info("Chave da API movida do config.yaml para o Gerenciador de Credenciais.")
     try:
         recurrence.generate_due()
     except Exception as e:

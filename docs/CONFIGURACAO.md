@@ -21,7 +21,7 @@ database:
   path: ~/.stonks_ai/data/stonks_ai.db   # Caminho do banco SQLite
 
 llm:
-  model: llama3.2:3b                      # Modelo Ollama
+  model: qwen2.5:3b                      # Modelo Ollama
   endpoint: http://localhost:11434        # Endpoint do Ollama
   temperature: 0.3                        # Temperatura (0.0 - 1.0)
   max_tokens: 2048                        # Máximo de tokens por resposta
@@ -52,7 +52,7 @@ ui:
 
 | Chave | Tipo | Padrão | Descrição |
 |-------|------|--------|-----------|
-| `llm.model` | string | `llama3.2:3b` | Modelo Ollama para análises |
+| `llm.model` | string | `qwen2.5:3b` | Modelo Ollama para análises |
 | `llm.endpoint` | string | `http://localhost:11434` | URL do servidor Ollama |
 | `llm.temperature` | float | `0.3` | Criatividade das respostas (0.0 =保守, 1.0 = criativo) |
 | `llm.max_tokens` | int | `2048` | Limite de tokens por resposta |
@@ -60,10 +60,13 @@ ui:
 
 ### Modelos Ollama Recomendados
 
+Medido com `python -m evals.tools_eval` e `python -m evals.run_eval` (outubro de 2026). Modelos sem suporte a ferramentas (como o `gemma3`) funcionam, mas sem consultar cotações e os seus dados.
+
 | Modelo | Tamanho | RAM Necessária | Qualidade |
 |--------|---------|----------------|-----------|
-| `llama3.2:3b` | ~2GB | 4GB | ⭐ Recomendado |
-| `llama3.2:1b` | ~0.6GB | 2GB | ✅ Rápido, básico |
+| `qwen2.5:3b` | ~2GB | 4GB | ⭐ Recomendado: o melhor nas ferramentas do chat (93%) e nas perguntas de conceito |
+| `llama3.2:3b` | ~2GB | 4GB | ✅ Bom no texto, mas usa ferramenta em pergunta de conceito (80%) e ocupa mais memória |
+| `llama3.2:1b` | ~1,3GB | 2GB | ✅ Rápido, básico (74% nas ferramentas) |
 | `mistral:7b` | ~4.1GB | 8GB | ⭐ Excelente |
 | `gemma2:2b` | ~1.6GB | 4GB | ✅ Bom |
 
@@ -74,16 +77,11 @@ ui:
 | `ui.language` | string | `pt-BR` | Idioma da interface |
 | `ui.theme` | string | `dark` | Tema visual |
 
-### LLM na nuvem (opcional)
+### IA na nuvem (removida)
 
-| Chave | Tipo | Padrão | Descrição |
-|-------|------|--------|-----------|
-| `llm.provider` | string | `ollama` | `ollama`, `deepseek`, `openai` ou `openai_compatible` |
-| `llm.api_key` | string | `""` | `@keyring` = chave guardada no Gerenciador de Credenciais do Windows (padrão do app desktop). Também aceita `${NOME_DA_VARIAVEL}` para ler de uma variável de ambiente |
-| `llm.base_url` | string | `""` | URL da API, para `openai_compatible` |
-| `llm.fallback_provider` | string | `ollama` | IA usada se a da nuvem falhar (`""` desliga) |
-
-> Ao salvar a chave pelo app desktop (Ajustes), ela vai para o cofre do Windows e o `config.yaml` guarda só `@keyring`. Chaves antigas em texto puro são movidas para o cofre ao abrir o app.
+As opções `llm.provider`, `llm.api_key`, `llm.base_url` e `llm.fallback_provider` não existem mais: a IA
+é sempre o Ollama local (ADR 025). Ao abrir, o app apaga essas chaves de um `config.yaml` antigo; quem
+usava DeepSeek ou OpenAI volta para o modelo padrão do Ollama.
 
 ### UI e segurança do app desktop
 

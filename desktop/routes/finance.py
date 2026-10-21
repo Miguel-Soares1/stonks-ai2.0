@@ -223,8 +223,7 @@ def categorize_ai_pending() -> Dict[str, int]:
 def categorize_ai_run() -> Dict[str, Any]:
     """Organiza um lote de estabelecimentos de "Outros" com a IA. O app chama até acabar.
 
-    Sempre a IA local: descrição de extrato não vai para a nuvem, mesmo com o chat
-    configurado para uma IA remota.
+    IA local, com temperatura 0: a mesma descrição deve cair sempre na mesma categoria.
     """
     llm = get_local_llm_client()
     if not llm.is_available():

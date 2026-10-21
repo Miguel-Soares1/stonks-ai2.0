@@ -1,11 +1,5 @@
 """
-Integração com modelos de IA — local (Ollama) e remotos (DeepSeek, OpenAI, etc.).
-
-Providers disponíveis:
-- OllamaProvider: execução local via Ollama
-- DeepSeekProvider: API deepseek.com (~$0.14/1M tokens)
-- OpenAIProvider: API openai.com (GPT-4o-mini, GPT-4o)
-- OpenAICompatibleProvider: qualquer API OpenAI-compatible
+IA do Stonks AI: modelos locais pelo Ollama, no computador do usuário (ADR 025).
 
 Uso:
     from stonks_ai.llm import create_llm_client
@@ -15,10 +9,7 @@ Uso:
 
 from stonks_ai.llm.base import BaseLLMProvider, LLMError
 from stonks_ai.llm.ollama_provider import OllamaProvider
-from stonks_ai.llm.deepseek_provider import DeepSeekProvider
-from stonks_ai.llm.openai_provider import OpenAIProvider
-from stonks_ai.llm.openai_compatible_provider import OpenAICompatibleProvider
-from stonks_ai.llm.factory import FallbackChain, create_llm_client
+from stonks_ai.llm.factory import create_llm_client
 
 # Backward compatibility: OllamaClient como alias de OllamaProvider
 OllamaClient = OllamaProvider
@@ -28,9 +19,5 @@ __all__ = [
     "LLMError",
     "OllamaProvider",
     "OllamaClient",  # deprecated, use OllamaProvider
-    "DeepSeekProvider",
-    "OpenAIProvider",
-    "OpenAICompatibleProvider",
-    "FallbackChain",
     "create_llm_client",
 ]

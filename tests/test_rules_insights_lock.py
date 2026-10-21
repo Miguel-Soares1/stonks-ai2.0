@@ -255,7 +255,6 @@ def test_api_blocks_data_while_locked(temp_db, lock, monkeypatch):  # noqa: F811
 
     import desktop.api as api
 
-    monkeypatch.setattr(api, "migrate_plaintext_key", lambda cfg: False)
     lock.set_pin("2468")
     lock.lock_now()
     with TestClient(api.app, base_url="http://127.0.0.1") as c:

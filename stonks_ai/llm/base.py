@@ -1,8 +1,8 @@
 """
 Provider LLM abstrato para o Stonks AI.
 
-Define a interface comum para todos os providers de IA (local e remoto).
-Suporta Ollama, OpenAI, DeepSeek, e qualquer API OpenAI-compatible.
+Define a interface que os agentes usam. A única implementação é o Ollama, local (ADR 025);
+a interface fica para os testes trocarem o modelo por um falso.
 """
 
 import logging

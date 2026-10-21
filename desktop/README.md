@@ -24,8 +24,8 @@ StonksAI.exe
 | | Contas | Contas e cartões com saldo |
 | | Metas | Criar, editar, adicionar valor e acompanhar prazo |
 | | Alertas | Avisos de orçamento e metas; verificar agora e dispensar |
-| Assistente | Conversar com a IA | Chat com histórico; a resposta aparece enquanto é escrita. A mesma conversa abre num painel flutuante pelo botão **Perguntar à IA**, sem sair da tela atual |
-| | Ajustes | Provider e modelo de IA (lista os modelos do Ollama com o tamanho), bolsa padrão, PIN, backup, **segundo plano** (fechar a janela deixa o app na bandeja; abrir com o Windows) e informações do sistema |
+| Assistente | Conversar com a IA | Chat com histórico; a resposta aparece enquanto é escrita. A IA **consulta o app** para responder: cotações e indicadores, quanto você gastou, contas, carteira, metas, orçamento e watchlist, além de uma calculadora; acima da resposta aparece o que ela consultou (ADR 026). A mesma conversa abre num painel flutuante pelo botão **Perguntar à IA**, sem sair da tela atual |
+| | Ajustes | Modelo da IA local (lista os modelos do Ollama com o tamanho), bolsa padrão, PIN, backup, **segundo plano** (fechar a janela deixa o app na bandeja; abrir com o Windows) e informações do sistema |
 
 Todas as respostas da IA chegam em **streaming**: o primeiro trecho aparece em menos de 1 segundo, em vez de esperar a resposta inteira.
 
@@ -94,9 +94,9 @@ Mantenha `AppVersion` do `.iss` igual à versão do `pyproject.toml`.
 | Respostas da IA | O texto é escapado antes de virar HTML; uma resposta maliciosa não consegue injetar scripts. |
 | Bloqueio por PIN | Opcional (Ajustes). Com PIN, a API responde 423 a qualquer rota de dados até o PIN ser digitado, e bloqueia de novo após um tempo sem uso (5 min a 1 h, ou só ao abrir). O PIN fica como hash scrypt com sal; erros seguidos aumentam a espera. Não criptografa o banco: protege o app aberto, não os arquivos. Esqueceu o PIN? Com o app fechado, apague `pin_hash` em `config.yaml`. |
 | Ocultar valores | O botão de olho no topo troca todos os valores pessoais por `R$ ••••`, inclusive nas respostas da IA. |
-| Chave da IA no cofre | A chave de uma IA na nuvem fica no Gerenciador de Credenciais do Windows, não no `config.yaml` (que guarda só o marcador `@keyring`). Chaves salvas em texto puro por versões antigas são movidas ao abrir o app. |
+| IA só local | A IA roda no Ollama, no seu computador: perguntas, cotações e resumos do mês não saem dele. Não há chave de API para guardar (ADR 025). |
 | Backup | Cópia automática semanal (guarda as 8 últimas) em `backups/` dentro da pasta de dados, mais backup manual e restauração em Ajustes. Restaurar salva antes uma cópia do estado atual. |
-| Extrato fica local | A categorização roda no próprio app (regras aprendidas e palavras-chave). O botão "Organizar com IA" usa sempre a IA local (Ollama), mesmo com o chat configurado para uma IA na nuvem; sem o Ollama aberto, ele avisa e não faz nada. |
+| Extrato fica local | A categorização roda no próprio app (regras aprendidas e palavras-chave). O botão "Organizar com IA" usa a IA local (Ollama); sem o Ollama aberto, ele avisa e não faz nada. |
 | Importação | Só CSV, Excel e PDF, até 20 MB, processados numa pasta temporária apagada em seguida. |
 
 Rodando a API à mão (`uvicorn desktop.api:app`), não há token: use só para desenvolvimento. Para testar com token, defina `STONKS_API_TOKEN` e abra `http://127.0.0.1:8765/?t=<token>`.
@@ -136,7 +136,7 @@ desktop/
 
 | Rota | O que faz |
 |---|---|
-| `GET /api/status` | IA disponível, provider/modelo e pasta de dados |
+| `GET /api/status` | IA disponível, modelo e pasta de dados |
 | `GET /api/dashboard?year=&month=` | Resumo do mês, mês anterior, saldo de 90 dias, metas e alertas |
 | `GET /api/dashboard/summary-ai?year=&month=` | Resumo do mês pela IA (streaming) |
 | `GET /api/months?count=6` | Receitas e despesas dos últimos meses |
@@ -158,7 +158,7 @@ desktop/
 | `GET/POST /api/accounts`, `PUT/DELETE /api/accounts/{id}` | Contas |
 | `GET/POST /api/goals`, `PUT/DELETE /api/goals/{id}`, `POST /api/goals/{id}/contribute` | Metas |
 | `GET /api/alerts`, `POST /api/alerts/check`, `POST /api/alerts/{id}/dismiss` | Alertas |
-| `POST /api/chat` | Conversa com a IA (streaming) |
+| `POST /api/chat` | Conversa com a IA (streaming), com as ferramentas de `stonks_ai/llm/tools.py`; o que foi consultado vem entre caracteres `\x1e` |
 | `GET/PUT /api/settings`, `GET /api/settings/ollama-models` | Ajustes |
 | `GET /api/boot` | Tema, ocultar valores e estado do bloqueio (liberada com o app bloqueado) |
 | `GET /api/lock`, `POST /api/lock/unlock`, `POST /api/lock/lock`, `PUT /api/lock/pin`, `PUT /api/lock/timeout` | Bloqueio por PIN |

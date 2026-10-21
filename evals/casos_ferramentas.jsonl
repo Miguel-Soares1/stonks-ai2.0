@@ -1,0 +1,45 @@
+{"id": "cot-01", "pergunta": "Quanto está a PETR4 agora?", "esperado": [{"nome": "cotacao", "ticker": "PETR4"}]}
+{"id": "cot-02", "pergunta": "qual o preço da vale3", "esperado": [{"nome": "cotacao", "ticker": "VALE3"}]}
+{"id": "cot-03", "pergunta": "Bitcoin tá quanto hoje?", "esperado": [{"nome": "cotacao", "ticker": "BTC"}]}
+{"id": "cot-04", "pergunta": "Me diz a cotação da AAPL", "esperado": [{"nome": "cotacao", "ticker": "AAPL"}]}
+{"id": "cot-05", "pergunta": "A ITSA4 subiu hoje?", "esperado": [{"nome": "cotacao", "ticker": "ITSA4"}]}
+{"id": "cot-06", "pergunta": "Quanto custa uma cota do HGLG11?", "esperado": [{"nome": "cotacao", "ticker": "HGLG11"}]}
+{"id": "cot-07", "pergunta": "Compare o preço de PETR4 e VALE3 agora", "esperado": [{"nome": "cotacao", "ticker": "PETR4"}, {"nome": "cotacao", "ticker": "VALE3"}]}
+{"id": "ind-01", "pergunta": "Qual o P/L da WEGE3?", "esperado": [{"nome": "indicadores", "ticker": "WEGE3"}]}
+{"id": "ind-02", "pergunta": "Qual o dividend yield do BBAS3?", "esperado": [{"nome": "indicadores", "ticker": "BBAS3"}]}
+{"id": "ind-03", "pergunta": "A TAEE11 paga bons dividendos?", "esperado": [{"nome": "indicadores", "ticker": "TAEE11"}]}
+{"id": "ind-04", "pergunta": "Qual o ROE do ITUB4?", "esperado": [{"nome": "indicadores", "ticker": "ITUB4"}]}
+{"id": "mes-01", "pergunta": "Quanto gastei esse mês?", "esperado": [{"nome": "resumo_do_mes"}]}
+{"id": "mes-02", "pergunta": "Como foram minhas finanças em setembro?", "esperado": [{"nome": "resumo_do_mes", "mes": 9}]}
+{"id": "mes-03", "pergunta": "Quanto eu ganhei esse mês?", "esperado": [{"nome": "resumo_do_mes"}], "aceita": [[{"nome": "transacoes", "tipo": "receita"}]]}
+{"id": "mes-04", "pergunta": "Sobrou dinheiro esse mês?", "esperado": [{"nome": "resumo_do_mes"}]}
+{"id": "mes-05", "pergunta": "Em que eu mais gastei este mês?", "esperado": [{"nome": "resumo_do_mes"}]}
+{"id": "tx-01", "pergunta": "Quanto gastei com iFood esse mês?", "esperado": [{"nome": "transacoes", "busca": "ifood"}]}
+{"id": "tx-02", "pergunta": "Quanto gastei com Uber em setembro?", "esperado": [{"nome": "transacoes", "busca": "uber", "mes": 9}]}
+{"id": "tx-03", "pergunta": "Quais foram meus gastos no mercado?", "esperado": [{"nome": "transacoes", "busca": "mercado"}]}
+{"id": "tx-04", "pergunta": "Quanto recebi de salário esse mês?", "esperado": [{"nome": "transacoes", "busca": "sal", "tipo": "receita"}], "aceita": [[{"nome": "resumo_do_mes"}]]}
+{"id": "cta-01", "pergunta": "Quanto tenho na conta?", "esperado": [{"nome": "contas"}]}
+{"id": "cta-02", "pergunta": "Qual o saldo das minhas contas?", "esperado": [{"nome": "contas"}]}
+{"id": "car-01", "pergunta": "Quanto vale minha carteira de investimentos?", "esperado": [{"nome": "carteira"}]}
+{"id": "car-02", "pergunta": "Meus investimentos estão no lucro?", "esperado": [{"nome": "carteira"}]}
+{"id": "car-03", "pergunta": "Quais ações eu tenho?", "esperado": [{"nome": "carteira"}]}
+{"id": "met-01", "pergunta": "Como está minha meta de viagem?", "esperado": [{"nome": "metas"}]}
+{"id": "met-02", "pergunta": "Quanto falta para completar minha reserva de emergência?", "esperado": [{"nome": "metas"}]}
+{"id": "orc-01", "pergunta": "Já estourei o orçamento de alguma categoria?", "esperado": [{"nome": "orcamento"}]}
+{"id": "orc-02", "pergunta": "Quanto ainda posso gastar com lazer pelo meu orçamento?", "esperado": [{"nome": "orcamento"}]}
+{"id": "wat-01", "pergunta": "Como estão os ativos que eu acompanho?", "esperado": [{"nome": "watchlist"}]}
+{"id": "wat-02", "pergunta": "Algum ativo da minha watchlist chegou no preço-alvo?", "esperado": [{"nome": "watchlist"}]}
+{"id": "sem-01", "pergunta": "O que é P/L?", "esperado": []}
+{"id": "sem-02", "pergunta": "Qual a diferença entre CDB e Tesouro Direto?", "esperado": []}
+{"id": "sem-03", "pergunta": "Como montar uma reserva de emergência?", "esperado": []}
+{"id": "sem-04", "pergunta": "O que são FIIs?", "esperado": []}
+{"id": "sem-05", "pergunta": "Vale a pena investir em ações?", "esperado": []}
+{"id": "sem-06", "pergunta": "A PETR4 vai subir amanhã?", "esperado": [], "aceita": [[{"nome": "cotacao", "ticker": "PETR4"}]]}
+{"id": "seg-cot-01", "historico": [{"role": "user", "content": "Quanto está a PETR4 agora?"}, {"role": "assistant", "content": "A PETR4 está cotada a R$ 58,21 hoje, com variação de +0,36% no dia."}], "pergunta": "E a VALE3?", "esperado": [{"nome": "cotacao", "ticker": "VALE3"}]}
+{"id": "seg-cot-02", "historico": [{"role": "user", "content": "Bitcoin tá quanto?"}, {"role": "assistant", "content": "O Bitcoin está cotado em R$ 415.644,83 no momento, com variação de +0,29%."}], "pergunta": "e o ethereum?", "esperado": [{"nome": "cotacao", "ticker": "ETH"}]}
+{"id": "seg-cot-03", "historico": [{"role": "user", "content": "Quanto está a ITSA4?"}, {"role": "assistant", "content": "A ITSA4 está cotada a R$ 15,80, com alta de 2,27% no dia."}], "pergunta": "Qual o dividend yield dela?", "esperado": [{"nome": "indicadores", "ticker": "ITSA4"}]}
+{"id": "seg-mes-01", "historico": [{"role": "user", "content": "Quanto gastei esse mês?"}, {"role": "assistant", "content": "Em outubro, até hoje, você gastou R$ 2.340,00 e recebeu R$ 5.000,00. Sobraram R$ 2.660,00."}], "pergunta": "E em setembro?", "esperado": [{"nome": "resumo_do_mes", "mes": 9}]}
+{"id": "seg-mes-02", "historico": [{"role": "user", "content": "Quanto gastei esse mês?"}, {"role": "assistant", "content": "Em outubro, até hoje, você gastou R$ 2.340,00 e recebeu R$ 5.000,00. Sobraram R$ 2.660,00."}], "pergunta": "Quanto disso foi com iFood?", "esperado": [{"nome": "transacoes", "busca": "ifood"}]}
+{"id": "seg-sem-01", "historico": [{"role": "user", "content": "Quanto está a PETR4 agora?"}, {"role": "assistant", "content": "A PETR4 está cotada a R$ 58,21 hoje, com variação de +0,36% no dia."}], "pergunta": "O que é dividend yield?", "esperado": []}
+{"id": "calc-01", "pergunta": "Se eu investir R$ 1.000 a 1% ao mês, quanto tenho em um ano?", "esperado": [{"nome": "calcular"}]}
+{"id": "calc-02", "pergunta": "Quanto é 15% de 2.340?", "esperado": [{"nome": "calcular"}]}

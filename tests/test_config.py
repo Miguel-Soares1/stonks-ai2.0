@@ -25,7 +25,7 @@ class TestConfig:
         cfg = Config(config_path)
         assert config_path.exists()
         assert cfg.get("app", "name") == "Stonks AI"
-        assert cfg.get("llm", "model") == "llama3.2:3b"
+        assert cfg.get("llm", "model") == "qwen2.5:3b"
 
     def test_load_existing_config(self, temp_dir):
         """Testa carregamento de config existente."""
@@ -36,7 +36,7 @@ class TestConfig:
         cfg = Config(config_path)
         assert cfg.get("app", "name") == "Stonks Test"
         # Valores padrão devem ser preservados
-        assert cfg.get("llm", "model") == "llama3.2:3b"
+        assert cfg.get("llm", "model") == "qwen2.5:3b"
 
     def test_invalid_yaml(self, temp_dir):
         """E029: Config YAML inválido."""
@@ -68,5 +68,5 @@ class TestConfig:
     def test_properties(self, temp_dir):
         """Testa propriedades de conveniência."""
         cfg = Config(temp_dir / "config.yaml")
-        assert cfg.llm_model == "llama3.2:3b"
+        assert cfg.llm_model == "qwen2.5:3b"
         assert "stonks_ai.db" in str(cfg.db_path)

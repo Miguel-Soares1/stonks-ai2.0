@@ -115,7 +115,7 @@ class StockFundamentals:
 from stonks_ai.config import config
 
 # Ler configuração
-model = config.get("llm", "model")  # "llama3.2:3b"
+model = config.get("llm", "model")  # "qwen2.5:3b"
 db_path = config.db_path  # Path object
 
 # Alterar configuração

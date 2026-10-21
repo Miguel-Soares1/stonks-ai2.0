@@ -66,6 +66,40 @@ O que os números dizem:
 - **Atualização (20/10/2026, prompt com dicas por categoria, 31 casos de categorização):** llama3.2:3b **84%**, qwen2.5:3b 81%, qwen2.5:1.5b 77%, todos com ~0,4 s por caso. O llama3.2:3b continua o melhor para categorizar, e é o modelo usado pelo botão "Organizar com IA".
 - **llama3.2:1b** não serve para o app.
 
+## Ferramentas do chat (`tools_eval.py`)
+
+Mede se a IA consulta o app quando deve: qual ferramenta chama e com quais argumentos, pelo
+mesmo caminho do chat (prompt, ferramentas, histórico como contexto e consulta garantida dos
+ativos citados). Não executa nada, então não precisa de internet nem de dados.
+
+```bash
+python -m evals.tools_eval                              # modelo do config.yaml
+python -m evals.tools_eval --model qwen2.5:3b llama3.2:3b
+```
+
+Os casos ficam em `casos_ferramentas.jsonl`: `esperado` é a lista de chamadas (`[]` = responder
+sem ferramenta), `aceita` lista alternativas também certas e `historico` simula uma pergunta de
+seguimento ("e a VALE3?").
+
+### Resultados (21/10/2026, 45 casos, temperatura 0)
+
+| Modelo | Ferramentas | Decisão | Memória |
+|---|---|---|---|
+| **qwen2.5:3b** | **93%** | 0,8 s | **2,0 GB** |
+| llama3.2:3b | 80% | 0,6 s | 2,4 GB |
+| llama3.2:1b | 74% | 2,5 s | 1,4 GB |
+| qwen2.5:1.5b | 16% (quase nunca chama ferramenta) | 1,3 s | 1,1 GB |
+
+Com o mesmo prompt, nas tarefas de texto (`run_eval`): qwen2.5:3b 100% em conceito e 100% em
+segurança; llama3.2:3b 95% e 100%. Por isso o padrão passou a ser o **qwen2.5:3b** (ADR 026).
+
+O que mudou o resultado, medido passo a passo:
+
+1. Descrição de cada ferramenta com exemplos de pergunta ("use para: quanto gastei este mês"): 70% → 76%.
+2. Prompt de sistema curto: o prompt longo antigo fazia o qwen2.5:3b deixar de consultar os dados do usuário (78% → 94%).
+3. Perguntas de seguimento: com as respostas anteriores como mensagens, o qwen2.5:3b copiava o formato delas e **inventava o preço** ("e a VALE3?" → R$ 122,00; o real era R$ 65,44). A conversa anterior passou a ir como contexto no prompt de sistema, e o ativo citado na pergunta é consultado pelo próprio app antes do modelo.
+4. Mês citado na pergunta ("e em setembro?") que o modelo esquece de passar é completado pelo app.
+
 ## Como usar o resultado
 
 1. Rode com o modelo atual: essa é a referência.

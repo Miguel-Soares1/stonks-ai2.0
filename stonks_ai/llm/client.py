@@ -15,26 +15,9 @@ _llm_client = None
 
 
 def get_local_llm_client() -> OllamaClient:
-    """Cliente Ollama local configurado (endpoint, modelo, contexto).
-
-    Usado para dados sensíveis (descrições de extrato bancário): sempre roda no
-    computador, mesmo que o chat esteja configurado para uma IA na nuvem.
-    """
-    from stonks_ai.config import config
-
-    model = config.get("llm", "model", default="llama3.2:3b")
-    if config.get("llm", "provider", default="ollama") != "ollama":
-        # O modelo configurado é de um provider remoto; usa o modelo local de fallback
-        model = config.get("llm", "local_model", default="llama3.2:3b")
-    return OllamaClient(
-        model=model,
-        endpoint=config.get("llm", "endpoint", default="http://localhost:11434"),
-        temperature=0.0,
-        max_tokens=config.get("llm", "max_tokens", default=2048),
-        timeout=config.get("llm", "timeout_seconds", default=120),
-        num_ctx=config.get("llm", "num_ctx", default=4096),
-        keep_alive=config.get("llm", "keep_alive", default="2m"),
-    )
+    """Cliente Ollama com temperatura 0, para tarefas que pedem uma resposta exata
+    (categorizar estabelecimentos, ler extratos em PDF)."""
+    return create_llm_client(temperature=0.0)
 
 
 def get_llm_client():

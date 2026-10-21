@@ -135,7 +135,6 @@ def test_export_routes(export_to_tmp, monkeypatch):
 
     import desktop.api as api
 
-    monkeypatch.setattr(api, "migrate_plaintext_key", lambda cfg: False)
     with TestClient(api.app, base_url="http://127.0.0.1") as c:
         r = c.post("/api/export/transactions", json={"year": 2026})
         assert r.status_code == 200
