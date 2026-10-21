@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 
 from stonks_ai.collectors.finance import b3_importer
 from stonks_ai.collectors.finance.base import FinanceDataError
-from stonks_ai.utils import portfolio
+from stonks_ai.utils import performance, portfolio
 
 router = APIRouter(prefix="/api/portfolio")
 
@@ -34,6 +34,12 @@ class OperationIn(BaseModel):
 def overview() -> Dict[str, Any]:
     """Posições com cotação, totais e proventos dos últimos 12 meses."""
     return portfolio.overview()
+
+
+@router.get("/performance")
+def performance_overview() -> Optional[Dict[str, Any]]:
+    """Rentabilidade ponderada no tempo contra CDI e Ibovespa (None sem operações)."""
+    return performance.overview()
 
 
 @router.get("/operations")

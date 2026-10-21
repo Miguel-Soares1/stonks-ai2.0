@@ -697,8 +697,40 @@ O app mostrava cotações e finanças do dia a dia, mas não sabia o que a pesso
 - ✅ Reimportar é seguro; a tela diz o que foi ignorado e por quê
 - ✅ Preço médio igual ao que a Receita pede, base para o relatório de IR (exportação, próximo item do Roadmap)
 - ❌ Sem taxas de corretagem e emolumentos (a B3 não informa); quem quiser exatidão lança à mão
-- ❌ Rentabilidade contra CDI e Ibovespa ainda não existe (próximo passo)
 - ❌ Ativos fora da B3 e cripto ainda não entram
+
+---
+
+## ADR 022: Rentabilidade ponderada no tempo, dia a dia, contra CDI e Ibovespa
+
+**Status:** ✅ Aceito
+**Data:** 2026-10
+**Tipo:** 💰 Finanças
+
+### Contexto
+O "resultado sobre o preço médio" da carteira não serve para comparar com o CDI e o Ibovespa: com aportes ao longo do tempo, ele mistura o desempenho dos ativos com o momento de cada aporte (exemplo em [`docs/CARTEIRA.md`](CARTEIRA.md), seção 4: o mesmo ano dá +3,6% ou +13% conforme o método).
+
+### Decisão
+- **Retorno ponderado no tempo (TWR), diário** (`stonks_ai/utils/performance.py`): em cada pregão, `(valor no fim + vendas + proventos) / (valor anterior + compras) − 1`, encadeado. É o sistema de cotas dos fundos.
+- **CDI:** série 12 do SGS do Banco Central, encadeada dia útil a dia útil. **Ibovespa:** `^BVSP` no yfinance. Os pregões do Ibovespa formam o calendário.
+- **Preços históricos sem o ajuste de desdobramento:** o yfinance divide os preços antigos pelos desdobramentos e bonificações; a carteira multiplica de volta, porque usa as cotas que existiam em cada dia (que já incluem o desdobramento lançado).
+- Busca dos dados (`collectors/stocks/benchmarks.py`) separada do cálculo, que recebe tudo pronto e é testado sem internet. Cache em memória de 1 hora.
+- Sem internet, a tela continua: o que faltar (CDI, Ibovespa, histórico de um ativo) aparece como indisponível, e o ativo sem histórico vale o preço da última operação.
+
+### Alternativas Consideradas
+| Alternativa | Prós | Contras |
+|---|---|---|
+| **TWR diário** | Comparável a índices; padrão dos fundos | Precisa do histórico de preços de cada ativo |
+| TWR mensal (Dietz modificado) | Menos dados | Aproxima os fluxos dentro do mês; erra mais com aportes grandes |
+| Taxa interna de retorno (TIR) | Mede a experiência do dinheiro do investidor | Não é comparável ao CDI e ao Ibovespa, que não têm aportes |
+| Guardar os preços históricos no SQLite | Abre sem internet; mais rápido | Mais código e migração; o cache em memória basta por enquanto |
+
+### Consequências
+- ✅ "% do CDI", últimos 12 meses e no ano, os números que o investidor brasileiro usa
+- ✅ Uma carteira com 5 ativos desde 2025 calcula em cerca de 2 s na primeira vez e instantaneamente depois
+- ❌ Proventos entram na data de pagamento (a do extrato), não na data ex: a curva oscila um pouco entre as duas
+- ❌ Provento recebido depois de vender tudo não entra (não há valor investido naquele dia)
+- ❌ Precisa de internet na primeira abertura de cada sessão do app
 
 ---
 

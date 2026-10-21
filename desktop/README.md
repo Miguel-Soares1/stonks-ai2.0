@@ -20,7 +20,7 @@ StonksAI.exe
 | | Comparar | De 2 a 5 ativos: desempenho em base 100, indicadores lado a lado e comparação pela IA |
 | Minhas finanças | Transações | Filtros, adicionar, editar e excluir. Importar extrato pelo botão ou **arrastando o arquivo para a janela**. Transações recorrentes (semanal, quinzenal, mensal, anual) são lançadas sozinhas quando a data chega |
 | | Orçamento | Limite mensal por categoria e quanto já foi usado (substitui a aba Categorias). Regras de categoria aprendidas: ao corrigir a categoria de uma transação, o estabelecimento passa a ir sempre para ela |
-| | Carteira | Posições com preço médio, cotação, resultado e peso; proventos dos últimos 12 meses; histórico de operações. Importa os extratos de **Negociação** e **Movimentação** da Área do Investidor da B3 (pelo botão ou arrastando `negociacao-*.xlsx`/`movimentacao-*.xlsx` para a janela) e aceita operações lançadas à mão |
+| | Carteira | Posições com preço médio, cotação, resultado e peso; rentabilidade comparada com CDI e Ibovespa; proventos dos últimos 12 meses; histórico de operações. Importa os extratos de **Negociação** e **Movimentação** da Área do Investidor da B3 (pelo botão ou arrastando `negociacao-*.xlsx`/`movimentacao-*.xlsx` para a janela) e aceita operações lançadas à mão |
 | | Contas | Contas e cartões com saldo |
 | | Metas | Criar, editar, adicionar valor e acompanhar prazo |
 | | Alertas | Avisos de orçamento e metas; verificar agora e dispensar |
@@ -133,6 +133,7 @@ desktop/
 | `GET/POST /api/transactions`, `PUT/DELETE /api/transactions/{id}` | Transações |
 | `POST /api/import?filename=` | Importar extrato (o corpo é o arquivo) |
 | `GET /api/portfolio` | Posições com cotação, totais e proventos por mês |
+| `GET /api/portfolio/performance` | Rentabilidade ponderada no tempo contra CDI e Ibovespa (série semanal e resumo por período) |
 | `GET/POST /api/portfolio/operations`, `DELETE /api/portfolio/operations/{id}` | Operações da carteira |
 | `POST /api/portfolio/import?filename=` | Importar extrato da B3 (o corpo é o arquivo) |
 | `GET /api/categories`, `GET /api/budget`, `PUT /api/categories/{id}/budget` | Orçamento |

@@ -27,7 +27,7 @@
 | 🤖 **Análise com IA Local** | Análise técnica e fundamentalista via Ollama (Llama 3, Mistral, Gemma) |
 | ⚖️ **Comparação de Ativos** | Compare múltiplos ativos lado a lado |
 | 👀 **Watchlist** | Gerencie sua lista de ativos monitorados |
-| 💼 **Carteira de Investimentos** | Importa os extratos da B3 (Negociação e Movimentação); preço médio, resultado, proventos e patrimônio total no Início |
+| 💼 **Carteira de Investimentos** | Importa os extratos da B3 (Negociação e Movimentação); preço médio, resultado, proventos, rentabilidade contra CDI e Ibovespa e patrimônio total no Início |
 | 💰 **Finanças Pessoais** | Importe extratos de CSV, Excel e PDF; categorização automática que **aprende quando você corrige** |
 | 🔁 **Transações Recorrentes** | Aluguel, salário e assinaturas lançados sozinhos quando a data chega |
 | 💡 **Insights do Mês** | Categoria que mais subiu e orçamento que vai estourar, calculados pelo código (a IA só explica) |
@@ -99,7 +99,7 @@ pip install -e ".[desktop]"
 python -m desktop.app
 ```
 
-- **Carteira:** importação dos extratos da B3, preço médio pelo método da Receita, resultado e proventos
+- **Carteira:** importação dos extratos da B3, preço médio pelo método da Receita, resultado, proventos e rentabilidade contra CDI e Ibovespa
 - **Início:** saldo nas contas, quanto entrou e saiu, investimentos, ritmo de gastos, insight do mês, recorrentes, metas e watchlist
 - **Chat com a IA** em tela cheia ou num painel flutuante, com a resposta aparecendo enquanto é escrita
 - **Privacidade:** botão para ocultar valores (`R$ ••••`), bloqueio por PIN, chave da IA no Gerenciador de Credenciais do Windows
@@ -297,7 +297,8 @@ stonks-ai/
 | [`docs/CONFIGURACAO.md`](docs/CONFIGURACAO.md) | Todas as opções de configuração do YAML |
 | [`docs/EXEMPLOS.md`](docs/EXEMPLOS.md) | Exemplos práticos de uso |
 | [`docs/API.md`](docs/API.md) | Documentação da API interna para uso programático |
-| [`docs/adr.md`](docs/adr.md) | Architecture Decision Records (21 ADRs documentados) |
+| [`docs/adr.md`](docs/adr.md) | Architecture Decision Records (22 ADRs documentados) |
+| [`docs/CARTEIRA.md`](docs/CARTEIRA.md) | Como a carteira calcula: preço médio, importação da B3 e rentabilidade |
 | [`desktop/README.md`](desktop/README.md) | App desktop: telas, segurança, build, instalador e API local |
 | [`evals/README.md`](evals/README.md) | Como avaliar os modelos de IA locais |
 | [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) | Matriz de erros com 34 códigos e soluções |
@@ -343,12 +344,12 @@ Os testes rodam a cada push no GitHub Actions (`.github/workflows/testes.yml`), 
 - [x] **IA para estabelecimentos novos** — "Organizar com IA" chama o modelo local uma vez por estabelecimento em "Outros" (ADR 020)
 - [x] **Testes ponta a ponta e CI** — Playwright clicando no app; GitHub Actions no Windows a cada push
 - [x] **Carteira de Investimentos** — Importação dos extratos de Negociação e Movimentação da B3, preço médio, resultado, proventos e patrimônio total no Início (ADR 021)
+- [x] **Rentabilidade contra CDI e Ibovespa** — Retorno ponderado no tempo, dia a dia, e "% do CDI" (ADR 022; contas explicadas em [`docs/CARTEIRA.md`](docs/CARTEIRA.md))
 
 ### 🔜 Próximos (nesta ordem)
-1. [ ] **Rentabilidade da carteira contra CDI e Ibovespa** — Segunda parte da carteira
-2. [ ] **Exportação de Relatórios** — Excel primeiro (transações, resumo do mês, posição em 31/12 para o IR); PDF depois
-3. [ ] **Alertas de preço alvo no desktop** — Notificação do Windows, com o app na bandeja do sistema (sem e-mail: exigiria guardar senha de SMTP)
-4. [ ] **Criptomoedas na carteira** — Começando pelo yfinance (BTC-USD, ETH-USD); CoinGecko só se faltar alguma moeda
+1. [ ] **Exportação de Relatórios** — Excel primeiro (transações, resumo do mês, posição em 31/12 para o IR); PDF depois
+2. [ ] **Alertas de preço alvo no desktop** — Notificação do Windows, com o app na bandeja do sistema (sem e-mail: exigiria guardar senha de SMTP)
+3. [ ] **Criptomoedas na carteira** — Começando pelo yfinance (BTC-USD, ETH-USD); CoinGecko só se faltar alguma moeda
 
 ### 📋 Depois
 - [ ] **Criptografar o banco** — Protege os dados de verdade; o PIN só protege a tela

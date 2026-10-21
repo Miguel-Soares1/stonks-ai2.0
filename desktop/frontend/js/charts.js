@@ -32,11 +32,12 @@ function nearest(points, t) {
 
 /**
  * series: [{ name, color, points: [{ date, value }] }]
- * opts: { yFormat, tooltipFormat, area, baseline, height }
+ * opts: { yFormat, tooltipFormat, xFormat, area, baseline, height }
  */
 export function lineChart(el, series, opts = {}) {
   const yFormat = opts.yFormat || ((v) => v.toLocaleString("pt-BR"));
   const tipFormat = opts.tooltipFormat || yFormat;
+  const xFormat = opts.xFormat || shortDate;
   const prepared = series
     .map((s) => ({ ...s, points: s.points.map((p) => ({ t: toTime(p.date), date: p.date, v: p.value })) }))
     .filter((s) => s.points.length);
@@ -86,7 +87,7 @@ export function lineChart(el, series, opts = {}) {
           <line class="${t === opts.baseline ? "zero-line" : "grid-line"}" x1="${pad.l}" x2="${w - pad.r}" y1="${y(t)}" y2="${y(t)}"/>
           <text class="axis-label" x="${pad.l - 10}" y="${y(t) + 4}" text-anchor="end">${esc(yFormat(t))}</text>`).join("")}
         ${xTicks.map((t, k) => `<text class="axis-label" x="${x(t)}" y="${h - 6}"
-          text-anchor="${["start", "middle", "end"][k]}">${shortDate(new Date(t).toISOString())}</text>`).join("")}
+          text-anchor="${["start", "middle", "end"][k]}">${esc(xFormat(new Date(t).toISOString()))}</text>`).join("")}
         ${paths}
         ${labels}
         <line class="crosshair" y1="${pad.t}" y2="${h - pad.b}" visibility="hidden"/>

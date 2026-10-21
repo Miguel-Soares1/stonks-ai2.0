@@ -1,7 +1,7 @@
 // Carteira: posições com preço médio e cotação, proventos e operações; importação da B3.
 
 import { api, brl, brlCompact, changeHtml, confirmDialog, esc, formDialog, fullDate, icon, money, num, toast, todayIso, valuesHidden, $ } from "../core.js";
-import { groupedBars } from "../charts.js";
+import { groupedBars, lineChart } from "../charts.js";
 
 const KINDS = [
   ["buy", "Compra"], ["sell", "Venda"], ["dividend", "Dividendo"], ["jcp", "Juros sobre capital próprio"],
@@ -26,6 +26,10 @@ export async function render(root) {
     <div class="kpis" id="pf-kpis"></div>
     <div id="pf-warnings"></div>
     <article class="panel"><h2>Posições</h2><div id="pf-positions"><p class="empty">Buscando cotações…</p></div></article>
+    <div class="grid" id="pf-perf-row" hidden>
+      <article class="panel panel-wide"><h2>Rentabilidade comparada</h2><div class="chart" id="pf-perf-chart"></div></article>
+      <article class="panel"><h2>Por período</h2><div id="pf-perf-table"></div></article>
+    </div>
     <div class="grid">
       <article class="panel panel-wide"><h2>Proventos nos últimos 12 meses</h2><div class="chart chart-bars" id="pf-income"></div></article>
       <article class="panel">
@@ -54,6 +58,7 @@ export async function render(root) {
 
 async function load(root) {
   loadOperations(root);
+  loadPerformance(root);
   let o;
   try {
     o = await api("/api/portfolio");
@@ -141,6 +146,53 @@ function renderIncome(root, months) {
     values: [m.amount],
   })), [{ name: "Proventos", color: "var(--series-1)" }],
   { yFormat: brlCompact, tooltipFormat: brl, label: "Proventos recebidos por mês" });
+}
+
+// Retorno ponderado no tempo: aportes e resgates não contam como ganho (docs/CARTEIRA.md, seção 4)
+const monthYear = (iso) => new Intl.DateTimeFormat("pt-BR", { month: "short", year: "numeric" })
+  .format(new Date(String(iso).slice(0, 10) + "T12:00:00")).replace(".", "");
+const signedPct = (v, digits = 1) => (v == null ? "—" : `${v >= 0 ? "+" : "−"}${num(Math.abs(v), digits)}%`);
+
+async function loadPerformance(root) {
+  const row = $("#pf-perf-row", root);
+  // Busca anos de preços na primeira vez: pode levar alguns segundos
+  $("#pf-perf-chart", root).innerHTML = `<p class="empty">Calculando a rentabilidade…</p>`;
+  let p;
+  try {
+    p = await api("/api/portfolio/performance");
+  } catch (e) {
+    row.hidden = false;
+    $("#pf-perf-chart", root).innerHTML = `<p class="empty">Não foi possível calcular a rentabilidade: ${esc(e.message)}</p>`;
+    return;
+  }
+  row.hidden = !p;
+  if (!p) return;
+  const line = (key, name, color) => ({ name, color, points: p.chart.filter((c) => c[key] != null).map((c) => ({ date: c.date, value: c[key] })) });
+  lineChart($("#pf-perf-chart", root), [
+    line("portfolio", "Carteira", "var(--series-1)"),
+    line("cdi", "CDI", "var(--series-2)"),
+    line("ibov", "Ibovespa", "var(--series-3)"),
+  ], { yFormat: (v) => `${num(v, 0)}%`, tooltipFormat: (v) => signedPct(v, 2), baseline: 0, xFormat: monthYear,
+    label: "Rentabilidade acumulada da carteira, do CDI e do Ibovespa" });
+
+  const notes = [];
+  if (!p.benchmarks.cdi) notes.push("CDI indisponível agora (Banco Central fora do ar ou sem internet).");
+  if (!p.benchmarks.ibov) notes.push("Ibovespa indisponível agora.");
+  if (p.without_history.length) notes.push(`Sem histórico de preços: ${p.without_history.join(", ")} (avaliado pelo preço da última operação).`);
+  $("#pf-perf-table", root).innerHTML = `
+    <table class="table">
+      <thead><tr><th></th><th class="num">Carteira</th><th class="num">CDI</th><th class="num">Ibovespa</th></tr></thead>
+      <tbody>${p.windows.map((w) => `<tr>
+        <td>${esc(w.label)}</td>
+        <td class="num"><strong class="${w.portfolio >= 0 ? "up" : "down"}">${signedPct(w.portfolio)}</strong></td>
+        <td class="num">${signedPct(w.cdi)}</td>
+        <td class="num">${signedPct(w.ibov)}</td>
+      </tr>`).join("")}</tbody>
+    </table>
+    ${p.windows[0] && p.windows[0].cdi_share != null ? `<p class="small">Desde o início, a carteira rendeu <strong>${num(p.windows[0].cdi_share, 0)}% do CDI</strong>.</p>` : ""}
+    <p class="muted small">Retorno ponderado no tempo desde ${fullDate(p.start)}: aportes e vendas não contam como ganho, só a variação dos ativos e os proventos.
+      Não é o mesmo que o resultado sobre o preço médio.</p>
+    ${notes.map((n) => `<p class="muted small">${esc(n)}</p>`).join("")}`;
 }
 
 async function loadOperations(root, limit = OPS_PAGE) {
