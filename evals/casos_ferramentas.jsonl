@@ -43,3 +43,19 @@
 {"id": "seg-sem-01", "historico": [{"role": "user", "content": "Quanto está a PETR4 agora?"}, {"role": "assistant", "content": "A PETR4 está cotada a R$ 58,21 hoje, com variação de +0,36% no dia."}], "pergunta": "O que é dividend yield?", "esperado": []}
 {"id": "calc-01", "pergunta": "Se eu investir R$ 1.000 a 1% ao mês, quanto tenho em um ano?", "esperado": [{"nome": "calcular"}]}
 {"id": "calc-02", "pergunta": "Quanto é 15% de 2.340?", "esperado": [{"nome": "calcular"}]}
+{"id": "lan-01", "pergunta": "Gastei 45 reais no iFood hoje", "esperado": [{"nome": "lancar_transacao", "descricao": "ifood", "valor": 45}]}
+{"id": "lan-02", "pergunta": "anota aí: 120 de conta de luz", "esperado": [{"nome": "lancar_transacao", "descricao": "luz", "valor": 120}]}
+{"id": "lan-03", "pergunta": "Recebi 3.500 de salário", "esperado": [{"nome": "lancar_transacao", "valor": 3500, "tipo": "receita"}]}
+{"id": "lan-04", "pergunta": "lança um uber de 23,90 ontem", "esperado": [{"nome": "lancar_transacao", "descricao": "uber", "valor": 23.9, "data": 1}]}
+{"id": "lan-05", "pergunta": "Paguei 89,90 na farmácia com o Nubank", "esperado": [{"nome": "lancar_transacao", "descricao": "farm", "valor": 89.9}]}
+{"id": "lan-06", "pergunta": "registra um pix de 200 que recebi do João", "esperado": [{"nome": "lancar_transacao", "valor": 200, "tipo": "receita"}]}
+{"id": "lan-07", "pergunta": "Guardei 300 na meta da viagem", "esperado": [{"nome": "aportar_meta", "meta": "viag", "valor": 300}]}
+{"id": "lan-08", "pergunta": "coloca 100 reais na reserva de emergência", "esperado": [{"nome": "aportar_meta", "meta": "reserva", "valor": 100}]}
+{"id": "lan-09", "pergunta": "adiciona a WEGE3 na minha watchlist", "esperado": [{"nome": "adicionar_watchlist", "ticker": "WEGE3"}]}
+{"id": "lan-10", "pergunta": "Quero acompanhar a PETR4 e ser avisado quando chegar em 35", "esperado": [{"nome": "adicionar_watchlist", "ticker": "PETR4", "preco_alvo": 35}]}
+{"id": "lan-11", "pergunta": "põe a ITUB4 na watchlist com alvo de 30 reais", "esperado": [{"nome": "adicionar_watchlist", "ticker": "ITUB4", "preco_alvo": 30}]}
+{"id": "lan-neg-01", "pergunta": "Gastei muito com iFood esse mês?", "esperado": [{"nome": "transacoes", "busca": "ifood"}]}
+{"id": "lan-neg-02", "pergunta": "Quanto falta pra minha meta da viagem?", "esperado": [{"nome": "metas"}]}
+{"id": "lan-neg-03", "pergunta": "Como funciona uma watchlist?", "esperado": []}
+{"id": "lan-neg-04", "pergunta": "Vale a pena guardar dinheiro na poupança?", "esperado": []}
+{"id": "seg-lan-01", "historico": [{"role": "user", "content": "Quanto gastei com iFood este mês?"}, {"role": "assistant", "content": "Você gastou R$ 230,00 com iFood em outubro."}], "pergunta": "Lança mais 38 de hoje", "esperado": [{"nome": "lancar_transacao", "descricao": "ifood", "valor": 38}]}

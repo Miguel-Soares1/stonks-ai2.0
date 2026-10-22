@@ -846,7 +846,47 @@ Perguntado "quanto está a PETR4?", o chat respondia que não tinha acesso a dad
 - ✅ Decisões medidas e repetíveis (`python -m evals.tools_eval`)
 - ❌ Uma pergunta com ativo citado sempre busca a cotação (cerca de 1 s), mesmo quando não era preciso
 - ❌ Categorização com o `qwen2.5:3b`: 81% contra 84% do `llama3.2:3b` (31 casos), porque o modelo é um só
-- ❌ Só leitura: a IA ainda não lança transações nem mexe em metas
+- ❌ Só leitura: a IA ainda não lança transações nem mexe em metas (feito no ADR 027)
+
+---
+
+## ADR 027: A IA prepara lançamentos e o usuário confirma na tela
+
+**Status:** ✅ Aceito
+**Data:** 2026-10
+**Tipo:** 🤖 IA
+
+### Contexto
+Com as ferramentas de leitura (ADR 026), o chat responde com os dados do app, mas não fazia nada: "gastei 45 no iFood" terminava em "vá até Transações e lance". O próximo passo combinado foi a IA lançar no app, sempre com um botão de confirmar. Um modelo de 3B erra argumentos (valor, data, nome da meta) e às vezes escolhe a ferramenta errada; gravar direto seria arriscado.
+
+### Decisão
+- **Três ferramentas de lançamento** em `stonks_ai/llm/tools.py`: `lancar_transacao` (gasto ou receita, data, categoria e conta opcionais), `aportar_meta` e `adicionar_watchlist` (com preço-alvo opcional).
+- **Nenhuma grava.** Cada uma confere e completa os argumentos e devolve uma **proposta**: título, linhas para mostrar e o corpo exato da rota do app. A proposta vai para a tela em JSON entre caracteres `\x1d`; o modelo recebe só "AINDA NÃO FOI LANÇADO: o usuário precisa clicar em Confirmar".
+- **Quem grava é a tela**, ao clicar em Confirmar, pelas mesmas rotas dos formulários (`POST /api/transactions`, `/api/goals/{id}/contribute`, `/api/watchlist`), com as mesmas validações. A rota é escolhida pela tela a partir do tipo da proposta; a IA não escolhe endereço. Cancelar não grava nada. Depois de confirmar, a tela aberta atrás do painel flutuante é redesenhada.
+- **O que o código confere antes de propor:** valor positivo ("45,90", "R$ 1.200,00", -45); data ("hoje", "ontem", "05/10", AAAA-MM-DD); categoria e conta pelo nome sem acento; meta pelo nome (com uma só meta ativa, "minha meta" é ela); ativo existente, fora da watchlist e que não seja cripto. Erro volta ao modelo, que explica ("Metas ativas: Viagem, Reserva").
+- **Correções de erros medidos dos modelos** (`evals/tools_eval.py`, 16 casos novos):
+  - data que a pergunta não cita é descartada: o modelo inventava uma data do ano em que foi treinado;
+  - "recebi 3.500 de salário" pedido como aporte numa meta "salário" (qwen2.5:3b) vira receita;
+  - conta citada na frase ("no Nubank") e esquecida pelo modelo é completada;
+  - descrição que é só a data ("hoje") é recusada;
+  - pedido de watchlist não dispara a consulta automática de cotação.
+- **A tela avisa** quando o modelo diz que preparou algo e não há proposta ("Nenhum lançamento foi preparado").
+
+### Alternativas Consideradas
+| Alternativa | Prós | Contras |
+|---|---|---|
+| **Proposta + confirmar na tela** | Nada é gravado sem o usuário ver os valores; reaproveita rotas e validações | Um clique a mais |
+| Gravar direto e oferecer "desfazer" | Mais rápido | Um erro do modelo vira dado errado até alguém notar; desfazer aporte e recorrente é complicado |
+| A IA abre o formulário preenchido | Usa a tela que já existe | Tira o usuário da conversa; o painel flutuante perderia o contexto |
+| Rota nova de "executar proposta" | Um endpoint só | Mais um caminho de escrita para proteger, com validações duplicadas |
+
+### Consequências
+- ✅ "Gastei 45,90 no iFood", "guardei 300 na meta da viagem", "adiciona a WEGE3 na watchlist com alvo de 60" e "recebi 3.500 de salário no Nubank" viram um cartão com Confirmar; testado com o qwen2.5:3b real, tudo gravado certo
+- ✅ qwen2.5:3b: 93% nas ferramentas (57 de 61), acertando os 11 pedidos de lançamento, sem piorar nos casos antigos
+- ✅ Testes: a proposta é aceita pelas rotas reais; e2e clicando em Confirmar e Cancelar
+- ❌ llama3.2:3b às vezes chama `adicionar_watchlist` quando a pergunta só quer ver a watchlist (a proposta aparece e o usuário cancela)
+- ❌ Em pergunta de seguimento ("lança mais 38 de hoje"), o modelo nem sempre pega o estabelecimento da conversa anterior; o app recusa e a IA pergunta
+- ❌ Ainda não lança operações da carteira (compra e venda de ativos)
 
 ---
 

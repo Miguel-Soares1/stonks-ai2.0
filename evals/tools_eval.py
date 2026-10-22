@@ -16,7 +16,7 @@ import asyncio
 import json
 import time
 import unicodedata
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -25,7 +25,7 @@ import httpx
 from stonks_ai.config import config
 from stonks_ai.llm.factory import create_llm_client
 from stonks_ai.llm.prompts import build_chat_system_prompt, chat_query_from_messages
-from stonks_ai.llm.tools import TOOLS, build_convo, normalize_call, prefetch_calls, tools_prompt
+from stonks_ai.llm.tools import TOOLS, _date_arg, build_convo, normalize_call, prefetch_calls, tools_prompt
 
 ROOT = Path(__file__).parent
 CASES = ROOT / "casos_ferramentas.jsonl"
@@ -47,6 +47,18 @@ def _matches(call: Dict[str, Any], want: Dict[str, Any]) -> bool:
         got = args.get(key)
         if key == "ticker":
             if _plain(got).upper().replace("-USD", "") != value:
+                return False
+        elif key in ("valor", "preco_alvo"):  # número: 23.9, "23,90" e "R$ 23,90" valem
+            try:
+                if abs(float(str(got).replace("R$", "").replace(",", ".")) - value) > 0.005:
+                    return False
+            except (TypeError, ValueError):
+                return False
+        elif key == "data":  # dias atrás: 1 = ontem ("ontem" ou a data, tanto faz)
+            try:
+                if _date_arg(got, date.today()) != date.today() - timedelta(days=value):
+                    return False
+            except ValueError:
                 return False
         elif key == "mes":
             try:

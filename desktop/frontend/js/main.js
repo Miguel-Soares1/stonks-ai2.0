@@ -166,6 +166,8 @@ $("#chat-expand").addEventListener("click", closeChat);
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !drawer.hidden) closeChat(); });
 // Botões "Entender com a IA" das telas mandam a pergunta pronta
 window.addEventListener("stonks:ask", (e) => { openChat(); ask(e.detail); });
+// Lançamento confirmado no chat: a tela aberta atrás é redesenhada (a do Assistente não precisa)
+window.addEventListener("stonks:changed", () => { if (!location.hash.startsWith("#assistente")) route(); });
 
 // ── Busca de ativo (Ctrl K) ─────────────────────────────
 

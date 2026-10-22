@@ -111,3 +111,26 @@ def test_backup_routes(client):
     assert client.post("/api/backups/config.yaml/restore").status_code == 422
     assert client.post("/api/backups/..%2Fstonks_ai.db/restore").status_code in (404, 405, 422)
     assert client.post("/api/backups/restore-file", content=b"lixo").status_code == 422
+
+
+def test_chat_proposals_are_accepted_by_the_app_routes(client):
+    """O que a IA propõe é o corpo que a tela manda ao confirmar (chat.js, ENDPOINTS): as rotas aceitam."""
+    from types import SimpleNamespace
+
+    from desktop.state import personal_agent
+    from stonks_ai.llm.tools import Toolbox
+
+    quote = SimpleNamespace(ticker="WEGE3", name="WEG", price=40.0, currency="BRL")
+    toolbox = Toolbox(SimpleNamespace(get_quote=lambda t: quote), personal_agent())
+    goal = client.post("/api/goals", json={"name": "Viagem", "target_amount": 1000}).json()
+
+    p = toolbox.run("lancar_transacao", {"descricao": "Uber", "valor": 23.5})["_proposta"]
+    tx = client.post("/api/transactions", json=p["corpo"])
+    assert tx.status_code == 201 and tx.json()["category_name"] == "Transporte"
+
+    p = toolbox.run("aportar_meta", {"meta": "viagem", "valor": 250})["_proposta"]
+    r = client.post(f"/api/goals/{p['id']}/contribute", json=p["corpo"])
+    assert r.status_code == 200 and r.json()["current_amount"] == 250 and p["id"] == goal["id"]
+
+    p = toolbox.run("adicionar_watchlist", {"ticker": "WEGE3", "preco_alvo": 45})["_proposta"]
+    assert client.post("/api/watchlist", json=p["corpo"]).status_code == 201

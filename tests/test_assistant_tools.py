@@ -9,8 +9,8 @@ import pytest
 
 from stonks_ai.database import db
 from stonks_ai.llm.base import LLMError
-from stonks_ai.llm.tools import (STATUS_MARK, TOOLS, Toolbox, assets_in, brl, build_convo, chat_with_tools,
-                                 normalize_call, pct, prefetch_calls, tools_prompt)
+from stonks_ai.llm.tools import (PROPOSAL_MARK, STATUS_MARK, TOOLS, Toolbox, assets_in, brl, build_convo,
+                                 chat_with_tools, normalize_call, pct, prefetch_calls, tools_prompt)
 from stonks_ai.models.transaction import Transaction
 
 TODAY = date(2026, 10, 21)
@@ -26,12 +26,17 @@ class FakeFinancial:
 
 
 class FakePersonal:
+    categorizer = SimpleNamespace(categorize=lambda d: (1, "Alimentação") if "ifood" in d.lower() else (None, "Outros"))
+
     def list_accounts(self, active_only=True):
-        return [{"name": "Nubank", "account_type": "checking", "balance": 1500.5},
-                {"name": "Carteira", "account_type": "cash", "balance": 80}]
+        return [{"id": 1, "name": "Nubank", "account_type": "checking", "balance": 1500.5},
+                {"id": 2, "name": "Carteira", "account_type": "cash", "balance": 80}]
+
+    def list_categories(self):
+        return [{"name": n} for n in ("Alimentação", "Transporte", "Saúde", "Salário", "Outros")]
 
     def list_goals(self, status="active"):
-        return [{"name": "Viagem", "target_amount": 5000, "current_amount": 1250, "remaining_amount": 3750,
+        return [{"id": 7, "name": "Viagem", "target_amount": 5000, "current_amount": 1250, "remaining_amount": 3750,
                  "progress_percent": 25.0, "deadline": "2027-07-01T00:00:00"}]
 
     def get_budget_overview(self, year, month):
@@ -227,3 +232,99 @@ def test_calculator_is_exact_and_safe(toolbox):
     assert safe_calc("(5000 - 2340) / 5000 * 100") == pytest.approx(53.2)
     for bad in ("__import__('os').system('dir')", "open('x')", "a + 1", "9 ** 9999", "1 / 0", "", "x" * 300):
         assert "erro" in toolbox.run("calcular", {"expressao": bad}), bad
+
+
+# ── Lançamentos pelo chat (ADR 027): a IA só propõe, a tela grava ao confirmar ──
+
+def test_transaction_is_only_proposed(toolbox):
+    r = toolbox.run("lancar_transacao", {"descricao": "iFood", "valor": "45,90"})
+    p = r.pop("_proposta")
+    assert "NÃO FOI LANÇADO" in r["situacao"] and "R$ 45,90" in r["resumo"]
+    assert p["tipo"] == "transacao" and p["titulo"] == "Lançar despesa"
+    assert p["corpo"] == {"description": "iFood", "amount": 45.9, "type": "expense", "date": "2026-10-21",
+                          "category_name": "Alimentação", "account_id": None}
+    assert ["Categoria", "Alimentação (automática)"] in p["linhas"]
+    with db.session() as s:
+        assert s.query(Transaction).count() == 0          # nada gravado sem o usuário confirmar
+
+
+def test_transaction_arguments_are_cleaned_up(toolbox):
+    p = toolbox.run("lancar_transacao", {"descricao": "Salário", "valor": -3200, "tipo": "receita", "data": "ontem",
+                                         "categoria": "salario", "conta": "nubank"})["_proposta"]
+    assert p["corpo"]["amount"] == 3200 and p["corpo"]["type"] == "income" and p["corpo"]["date"] == "2026-10-20"
+    assert p["corpo"]["category_name"] == "Salário" and p["corpo"]["account_id"] == 1
+    assert toolbox.run("lancar_transacao", {"descricao": "x", "valor": "R$ 1.200,50", "data": "05/10"}
+                       )["_proposta"]["corpo"]["amount"] == 1200.5
+    assert "Conta 'Itaú' não encontrada. Contas: Nubank, Carteira" in toolbox.run(
+        "lancar_transacao", {"descricao": "x", "valor": 10, "conta": "Itaú"})["erro"]
+    assert "maior que zero" in toolbox.run("lancar_transacao", {"descricao": "x", "valor": 0})["erro"]
+    assert "Falta a descrição" in toolbox.run("lancar_transacao", {"descricao": "hoje", "valor": 38})["erro"]
+    # Conta citada na frase, mas não nos argumentos; descrição toda em minúsculas ganha maiúscula
+    toolbox.question = "Recebi 3.500 de salário no nubank"
+    p = toolbox.run("lancar_transacao", {"descricao": "salario", "valor": 3500, "tipo": "receita"})["_proposta"]
+    assert p["corpo"]["account_id"] == 1 and p["corpo"]["description"] == "Salario"
+    assert "não reconhecida" in toolbox.run("lancar_transacao", {"descricao": "x", "valor": 1, "data": "amanhã cedo"})["erro"]
+
+
+def test_goal_contribution_is_proposed_by_name(toolbox):
+    p = toolbox.run("aportar_meta", {"meta": "viagem", "valor": 300})["_proposta"]
+    assert p["tipo"] == "meta" and p["id"] == 7 and p["corpo"] == {"amount": 300}
+    assert ["Guardado depois", 1550, "BRL"] in p["linhas"]
+    # Só uma meta ativa: "minha meta" é ela
+    assert toolbox.run("aportar_meta", {"meta": "minha meta", "valor": 10})["_proposta"]["id"] == 7
+    assert "não encontrada" in toolbox.run("aportar_meta", {"meta": "salário", "valor": 10})["erro"]
+    toolbox.personal.list_goals = lambda status="active": [
+        {"id": 1, "name": "Viagem", "target_amount": 1, "current_amount": 0},
+        {"id": 2, "name": "Reserva", "target_amount": 1, "current_amount": 0}]
+    assert "Metas ativas: Viagem, Reserva" in toolbox.run("aportar_meta", {"meta": "carro", "valor": 10})["erro"]
+
+
+def test_watchlist_proposal_checks_the_asset(toolbox):
+    from stonks_ai.models.watchlist import WatchlistItem
+
+    p = toolbox.run("adicionar_watchlist", {"ticker": "wege3", "preco_alvo": 35})["_proposta"]
+    assert p["corpo"] == {"ticker": "WEGE3", "target_price": 35} and ["Preço agora", 58.21, "BRL"] in p["linhas"]
+    assert "criptomoedas" in toolbox.run("adicionar_watchlist", {"ticker": "BTC"})["erro"]
+    assert "não encontrado" in toolbox.run("adicionar_watchlist", {"ticker": "XXXX3"})["erro"]
+    with db.session() as s:
+        s.add(WatchlistItem(ticker="WEGE3", exchange="B3"))
+    assert "já está na watchlist" in toolbox.run("adicionar_watchlist", {"ticker": "WEGE3"})["erro"]
+
+
+def test_invented_date_is_dropped():
+    call = {"name": "lancar_transacao", "arguments": {"descricao": "iFood", "valor": 45, "data": "2023-10-21"}}
+    assert "data" not in normalize_call(call, "gastei 45 no ifood", TODAY)["arguments"]
+    assert normalize_call(call, "gastei 45 no ifood dia 3", TODAY)["arguments"]["data"] == "2023-10-21"
+    # Recebimento que o modelo mandou como aporte em meta
+    fixed = normalize_call({"name": "aportar_meta", "arguments": {"meta": "salário", "valor": 3500}},
+                           "Recebi 3.500 de salário", TODAY)
+    assert fixed == {"name": "lancar_transacao", "arguments": {"descricao": "salário", "valor": 3500, "tipo": "receita"}}
+    kept = {"name": "aportar_meta", "arguments": {"meta": "viagem", "valor": 300}}
+    assert normalize_call(kept, "recebi 300 de bônus e coloquei na meta da viagem", TODAY) == kept
+    # Pedido de watchlist não dispara a consulta automática de cotação
+    assert prefetch_calls([{"role": "user", "content": "adiciona a WEGE3 na watchlist"}]) == []
+
+
+class ProposingLLM:
+    """Pede o lançamento duas vezes (o modelo repete) e depois responde."""
+
+    def __init__(self):
+        self.tool_results = []
+
+    async def stream_chat(self, messages, tools=None):
+        if messages[-1]["role"] == "tool":
+            self.tool_results.append(json.loads(messages[-1]["content"]))
+        if tools and len(self.tool_results) < 2:
+            yield {"tool_calls": [{"name": "lancar_transacao", "arguments": {"descricao": "iFood", "valor": 45}}]}
+            return
+        yield {"content": "Preparei o lançamento: é só confirmar abaixo."}
+
+
+def test_chat_sends_each_proposal_once(toolbox):
+    llm = ProposingLLM()
+    text = "".join(collect(chat_with_tools(llm, [{"role": "user", "content": "gastei 45 no ifood"}], "sys", toolbox)))
+    assert text.count(PROPOSAL_MARK) == 2 and STATUS_MARK not in text   # uma proposta, sem "Consultei"
+    proposal = json.loads(text.split(PROPOSAL_MARK)[1])
+    assert proposal["corpo"]["amount"] == 45 and "_proposta" not in llm.tool_results[0]
+    assert "já está na tela" in llm.tool_results[1]["situacao"]
+    assert text.endswith("é só confirmar abaixo.")

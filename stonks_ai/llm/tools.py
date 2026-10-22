@@ -3,7 +3,10 @@ Ferramentas da IA: o chat consulta dados reais do app em vez de responder de mem
 
 O modelo recebe a lista de ferramentas (TOOLS), decide se precisa de alguma, o app executa
 (Toolbox) e devolve o resultado; o modelo então responde com os números de verdade.
-Só leitura: nenhuma ferramenta muda dados.
+
+Nenhuma ferramenta muda dados. As de lançamento (WRITE_TOOLS: transação, aporte em meta,
+watchlist) só montam uma proposta; a tela mostra com Confirmar e Cancelar, e quem grava é a
+rota de sempre do app quando o usuário confirma (ADR 027).
 
 Os resultados são curtos e já formatados ("R$ 1.234,56", "+1,5%"): modelos pequenos erram
 menos repetindo um número pronto do que formatando um float.
@@ -15,6 +18,7 @@ import json
 import operator
 import logging
 import re
+import unicodedata
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, AsyncIterator, Callable, Dict, List, Optional
 
@@ -27,6 +31,10 @@ logger = logging.getLogger("stonks_ai.llm.tools")
 # Marca uma linha de status no texto do chat ("Consultando cotação de PETR4"); a tela tira
 # essas linhas da resposta e mostra à parte (desktop/frontend/js/chat.js)
 STATUS_MARK = "\x1e"
+# Marca uma proposta de lançamento (JSON entre duas marcas); a tela mostra Confirmar e Cancelar
+PROPOSAL_MARK = "\x1d"
+WRITE_TOOLS = {"lancar_transacao", "aportar_meta", "adicionar_watchlist"}
+PENDING = "Proposta mostrada na tela. AINDA NÃO FOI LANÇADO: o usuário precisa clicar em Confirmar."
 MAX_ROUNDS = 3
 MAX_ITEMS = 10
 
@@ -83,6 +91,30 @@ TOOLS = [
             "expressao": {"type": "string", "description": "Conta com números, + - * / ** e parênteses. "
                           "Ponto como separador decimal: 1.01, não 1,01"},
         }, ["expressao"]),
+    _fn("lancar_transacao", "Prepara o lançamento de um gasto ou de uma receita para o usuário confirmar na tela. "
+        "Use quando ele contar um gasto ou um recebimento, ou pedir para lançar, registrar ou anotar: 'gastei 45 no "
+        "iFood', 'lança 120 de conta de luz ontem', 'recebi 3.500 de salário' e 'anota um pix de 200 que recebi' "
+        "(tipo=receita). Não use para perguntas como 'quanto gastei'.", {
+            "descricao": {"type": "string", "description": "Onde ou com o quê, ex.: iFood, conta de luz, salário"},
+            "valor": {"type": "number", "description": "Valor em reais, ex.: 45.9"},
+            "tipo": {"type": "string", "enum": ["despesa", "receita"], "description": "Padrão: despesa"},
+            "data": {"type": "string", "description": "AAAA-MM-DD, 'hoje' ou 'ontem'. Só se o usuário disser a data"},
+            "categoria": {"type": "string", "description": "Só se o usuário disser a categoria"},
+            "conta": {"type": "string", "description": "Só se o usuário disser a conta ou o cartão, ex.: Nubank"},
+        }, ["descricao", "valor"]),
+    _fn("aportar_meta", "Prepara um aporte (dinheiro guardado) numa META do usuário, para ele confirmar na tela. "
+        "Use só quando ele citar a meta: 'guardei 300 na meta da viagem', 'coloca 100 na reserva de emergência'. "
+        "Salário ou pix recebido não é meta: é lancar_transacao.", {
+            "meta": {"type": "string", "description": "Nome da meta, ex.: viagem, reserva"},
+            "valor": {"type": "number", "description": "Valor em reais"},
+        }, ["meta", "valor"]),
+    _fn("adicionar_watchlist", "Prepara a inclusão de UM ativo novo, citado pelo código, na watchlist, com "
+        "preço-alvo opcional, para o usuário confirmar na tela. Use só quando ele pedir para adicionar: 'adiciona "
+        "a WEGE3 na watchlist', 'quero acompanhar a PETR4 e ser avisado em R$ 35'. Para ver como estão os ativos "
+        "que ele já acompanha, use watchlist.", {
+            **_TICKER,
+            "preco_alvo": {"type": "number", "description": "Preço-alvo, só se o usuário disser"},
+        }, ["ticker"]),
 ]
 
 STATUS_LABELS = {
@@ -96,6 +128,9 @@ STATUS_LABELS = {
     "orcamento": "orçamento",
     "watchlist": "watchlist",
     "calcular": "cálculo",
+    "lancar_transacao": "lançamento",
+    "aportar_meta": "aporte na meta",
+    "adicionar_watchlist": "watchlist",
 }
 
 TOOLS_PROMPT = """
@@ -113,6 +148,10 @@ DADOS DO APP: você tem ferramentas que consultam dados reais e atuais do app. H
 - Responda só o que foi perguntado, em poucas frases, com os números exatamente como a
   ferramenta devolveu. Se ela devolver "erro", explique o problema em uma frase.
 - Escreva contas e fórmulas em texto simples (1.000 × 1,01¹² = 1.126,83), nunca em LaTeX.
+- Pedido para lançar, registrar ou anotar um gasto ou receita: use lancar_transacao. Para guardar
+  dinheiro numa meta: aportar_meta. Para acompanhar um ativo: adicionar_watchlist. Elas só
+  preparam: diga em uma frase o que preparou e que falta confirmar no botão abaixo. Nunca diga
+  que já lançou.
 """
 
 
@@ -146,6 +185,70 @@ def _money(value: Optional[float], currency: str) -> Optional[str]:
     return None if value is None else f"{currency} {value:,.2f}".replace(",", "_").replace(".", ",").replace("_", ".")
 
 
+def _plain(text: Any) -> str:
+    """Sem acento, minúsculo: para comparar o nome que o modelo mandou com o do app."""
+    return unicodedata.normalize("NFKD", str(text or "")).encode("ascii", "ignore").decode().lower().strip()
+
+
+def _pick(term: Any, names: List[str]) -> List[str]:
+    """Nomes do app que combinam com o termo: igual primeiro, depois um contido no outro."""
+    t = _plain(term)
+    if not t:
+        return []
+    exact = [n for n in names if _plain(n) == t]
+    return exact or [n for n in names if t in _plain(n) or (_plain(n) and _plain(n) in t)]
+
+
+def _amount(raw: Any) -> float:
+    """Valor positivo em reais: aceita 45.9, "45,90", "R$ 1.200,00" e -45 (o sinal vem do tipo)."""
+    if isinstance(raw, (int, float)) and not isinstance(raw, bool):
+        value = float(raw)
+    else:
+        text = str(raw or "").replace("R$", "").strip()
+        text = re.sub(r"\b\d{1,3}(?:\.\d{3})+(?:,\d+)?\b",
+                      lambda m: m.group(0).replace(".", "").replace(",", "."), text).replace(",", ".")
+        try:
+            value = float(text)
+        except ValueError:
+            raise ValueError(f"'{raw}' não é um valor em reais.")
+    value = round(abs(value), 2)
+    if not 0 < value < 1e9:
+        raise ValueError("O valor precisa ser maior que zero.")
+    return value
+
+
+def _date_arg(raw: Any, today: date) -> date:
+    text = _plain(raw)
+    if text in ("", "hoje", "none", "null"):
+        return today
+    relative = {"ontem": 1, "anteontem": 2}
+    if text in relative:
+        return today - timedelta(days=relative[text])
+    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d/%m/%y"):
+        try:
+            return datetime.strptime(text, fmt).date()
+        except ValueError:
+            pass
+    m = re.fullmatch(r"(\d{1,2})/(\d{1,2})", text)
+    if m:
+        try:
+            return date(today.year, int(m.group(2)), int(m.group(1)))
+        except ValueError:
+            pass
+    raise ValueError(f"Data '{raw}' não reconhecida (use AAAA-MM-DD).")
+
+
+def _propose(kind: str, title: str, rows: List[list], body: Dict[str, Any], done: str,
+             summary: str, **extra: Any) -> Dict[str, Any]:
+    """Resultado de uma ferramenta de lançamento: o resumo vai para o modelo; a proposta, para a tela.
+
+    rows: [rótulo, valor, moeda]; com moeda, a tela formata o valor (e esconde, se o usuário
+    estiver com os valores ocultos).
+    """
+    return {"situacao": PENDING, "resumo": summary, "_proposta": {
+        "tipo": kind, "titulo": title, "linhas": rows, "corpo": body, "feito": done, **extra}}
+
+
 def _month_args(args: Dict[str, Any], today: date) -> tuple:
     try:
         month = int(args.get("mes") or today.month)
@@ -166,11 +269,13 @@ class Toolbox:
         self.financial = financial
         self.personal = personal
         self._today = today or date.today
+        self.question = ""  # a pergunta em andamento (chat_with_tools); ajuda a completar lançamentos
 
     def today(self) -> date:
         return self._today()
 
     def run(self, name: str, args: Dict[str, Any]) -> Dict[str, Any]:
+        """Resultado para o modelo; nas de lançamento, com a proposta para a tela em "_proposta"."""
         fn = getattr(self, f"_tool_{name}", None)
         if fn is None or name not in STATUS_LABELS:
             return {"erro": f"Ferramenta desconhecida: {name}."}
@@ -362,9 +467,97 @@ class Toolbox:
             out["observacao"] = "Nenhum limite de orçamento definido (Orçamento, no app)."
         return out
 
+    # ── Lançamentos (só propõem; quem grava é a tela, quando o usuário confirma) ──
+
+    def _tool_lancar_transacao(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        desc = str(args.get("descricao") or "").strip()[:200]
+        # Seguimento ("lança mais 38 de hoje") às vezes vem com a data no lugar da descrição
+        if _plain(desc) in ("", "hoje", "ontem", "anteontem", "gasto", "despesa", "receita"):
+            raise ValueError("Falta a descrição: onde foi o gasto ou de onde veio a receita.")
+        if desc.islower():  # "salario" -> "Salario"; "iFood" fica como está
+            desc = desc[0].upper() + desc[1:]
+        value = _amount(args.get("valor"))
+        kind = "income" if _plain(args.get("tipo")) in ("receita", "income", "entrada") else "expense"
+        when = _date_arg(args.get("data"), self._today())
+
+        found = _pick(args.get("categoria"), [c["name"] for c in self.personal.list_categories()])
+        category = found[0] if found else self.personal.categorizer.categorize(desc)[1]
+        account = None
+        accounts = self.personal.list_accounts(active_only=True)
+        wanted = args.get("conta")
+        if not wanted:  # "recebi 3.500 no Nubank": o modelo nem sempre passa a conta que a frase cita
+            asked = _plain(self.question)
+            wanted = next((a["name"] for a in accounts
+                           if _plain(a["name"]) and re.search(rf"\b{re.escape(_plain(a['name']))}\b", asked)), None)
+        if wanted:
+            names = _pick(wanted, [a["name"] for a in accounts])
+            if len(names) != 1:
+                raise ValueError(f"Conta '{wanted}' não encontrada. Contas: "
+                                 f"{', '.join(a['name'] for a in accounts) or 'nenhuma cadastrada'}.")
+            account = next(a for a in accounts if a["name"] == names[0])
+
+        label = "receita" if kind == "income" else "despesa"
+        rows = [["Descrição", desc], ["Valor", value, "BRL"], ["Data", when.strftime("%d/%m/%Y")],
+                ["Categoria", category + ("" if found else " (automática)")]]
+        if account:
+            rows.append(["Conta", account["name"]])
+        return _propose(
+            "transacao", f"Lançar {label}", rows,
+            {"description": desc, "amount": value, "type": kind, "date": when.isoformat(),
+             "category_name": category, "account_id": account["id"] if account else None},
+            done=f"{label.capitalize()} lançada.",
+            summary=f"{label} de {brl(value)}, {desc}, em {when.strftime('%d/%m/%Y')}, categoria {category}"
+                    + (f", conta {account['name']}" if account else ""))
+
+    def _tool_aportar_meta(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        value = _amount(args.get("valor"))
+        goals = self.personal.list_goals(status="active")
+        if not goals:
+            raise ValueError("Não há metas ativas. Crie uma na tela Metas.")
+        names = _pick(args.get("meta"), [g["name"] for g in goals])
+        # "coloca 100 na minha meta", e só existe uma. Um nome qualquer ("salário") não cai nela.
+        if not names and len(goals) == 1 and (not _plain(args.get("meta")) or "meta" in _plain(args.get("meta"))):
+            names = [goals[0]["name"]]
+        if len(names) != 1:
+            which = "Mais de uma meta combina" if names else f"Meta '{args.get('meta')}' não encontrada"
+            raise ValueError(f"{which}. Metas ativas: {', '.join(g['name'] for g in goals)}.")
+        goal = next(g for g in goals if g["name"] == names[0])
+        after = goal["current_amount"] + value
+        return _propose(
+            "meta", "Aportar na meta",
+            [["Meta", goal["name"]], ["Aporte", value, "BRL"], ["Guardado depois", after, "BRL"],
+             ["Objetivo", goal["target_amount"], "BRL"]],
+            {"amount": value}, id=goal["id"],
+            done="Aporte registrado." + (" Meta concluída!" if after >= goal["target_amount"] else ""),
+            summary=f"aporte de {brl(value)} na meta {goal['name']} (fica com {brl(after)} de "
+                    f"{brl(goal['target_amount'])})")
+
+    def _tool_adicionar_watchlist(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        from stonks_ai.collectors import crypto
+        from stonks_ai.database import db
+        from stonks_ai.models.watchlist import WatchlistItem
+
+        ticker = self._ticker(args)
+        if crypto.is_crypto(ticker):
+            raise ValueError("A watchlist ainda não acompanha criptomoedas.")
+        with db.session() as s:
+            if s.query(WatchlistItem).filter(WatchlistItem.ticker == ticker).first():
+                raise ValueError(f"{ticker} já está na watchlist.")
+        q = self.financial.get_quote(ticker)  # confirma que o ativo existe antes de propor
+        target = _amount(args["preco_alvo"]) if args.get("preco_alvo") not in (None, "", 0) else None
+        rows = [["Ativo", f"{ticker} — {q.name}" if q.name else ticker], ["Preço agora", q.price, q.currency]]
+        rows.append(["Preço-alvo", target, q.currency] if target else ["Preço-alvo", "sem alvo"])
+        return _propose(
+            "watchlist", "Adicionar à watchlist", rows, {"ticker": ticker, "target_price": target},
+            done=f"{ticker} adicionada à watchlist.",
+            summary=f"{ticker} na watchlist" + (f" com preço-alvo de {_money(target, q.currency)}" if target else ""))
+
 
 _MONTH_TOOLS = {"resumo_do_mes", "transacoes", "orcamento"}
 _LAST_MONTH = re.compile(r"m[eê]s passado|m[eê]s anterior|[uú]ltimo m[eê]s", re.I)
+_RECEIVED = re.compile(r"\b(recebi|recebemos|ganhei|caiu|entrou)\b", re.I)
+_DATE_WORDS = re.compile(r"ontem|\bdia\s+\d|\d{1,2}/\d{1,2}|\d{4}-\d{2}|segunda|ter[cç]a|quarta|quinta|sexta|"
+                         r"s[aá]bado|domingo|" + "|".join(MONTHS), re.I)
 
 
 # ── Calculadora ─────────────────────────────────────────────────────────
@@ -414,9 +607,18 @@ def normalize_call(call: Dict[str, Any], question: str = "", today: Optional[dat
     - Argumentos embrulhados em {"parameters": {...}}, como o llama3.2:1b às vezes manda.
     - Mês citado na pergunta ("e em setembro?", "mês passado") que o modelo esqueceu de passar:
       sem ele, a ferramenta devolveria o mês atual.
+    - Data de lançamento que a pergunta não cita: modelo pequeno inventa uma do ano em que foi
+      treinado; sem data na pergunta, o lançamento é de hoje.
+    - "Recebi 3.500 de salário" vira aporte numa meta "salário" no qwen2.5:3b; recebimento sem
+      falar de meta é lançamento de receita.
     """
     args = call["arguments"].get("parameters")
     args = dict(args if isinstance(args, dict) else call["arguments"])
+    if call["name"] == "aportar_meta" and _RECEIVED.search(question) and not re.search(r"\bmeta", question, re.I):
+        call = {**call, "name": "lancar_transacao"}
+        args = {"descricao": args.get("meta") or "Recebimento", "valor": args.get("valor"), "tipo": "receita"}
+    if call["name"] == "lancar_transacao" and question and not _DATE_WORDS.search(question):
+        args.pop("data", None)
     if call["name"] in _MONTH_TOOLS and not args.get("mes") and question:
         today = today or date.today()
         lower = question.lower()
@@ -445,6 +647,7 @@ _CRYPTO_NAMES = {
 }
 _INDICATOR_WORDS = re.compile(r"p\s*/\s*l\b|p\s*/\s*vp|dividend|\bdy\b|yield|\broe\b|margem|indicador|fundament|"
                               r"endividamento|valuation|lpa\b|vpa\b", re.I)
+_WATCHLIST_WORDS = re.compile(r"watch\s?list|acompanha", re.I)
 _FOLLOW_UP = re.compile(r"\b(dela|dele|dessa|desse|desta|deste|ela|ele|essa a[cç][aã]o|esse ativo)\b", re.I)
 MAX_PREFETCH = 3
 
@@ -478,6 +681,8 @@ def prefetch_calls(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     if not users:
         return []
     question = users[-1]
+    if _WATCHLIST_WORDS.search(question):  # "adiciona a WEGE3 na watchlist": é pedido, não pergunta
+        return []
     assets = assets_in(question)
     if not assets and len(users) > 1 and _FOLLOW_UP.search(question):
         assets = assets_in(users[-2])  # "qual o dividend yield dela?"
@@ -501,6 +706,10 @@ def build_convo(messages: List[Dict[str, Any]], system_prompt: str) -> List[Dict
     return [{"role": "system", "content": system_prompt}, last]
 
 
+def _proposal(p: Dict[str, Any]) -> str:
+    return f"{PROPOSAL_MARK}{json.dumps(p, ensure_ascii=False)}{PROPOSAL_MARK}"
+
+
 def _status(name: str, args: Dict[str, Any]) -> str:
     label = STATUS_LABELS.get(name, name)
     try:
@@ -515,18 +724,31 @@ async def chat_with_tools(llm, messages: List[Dict[str, Any]], system_prompt: st
     """Conversa em streaming: o texto vai saindo e cada ferramenta usada vira uma linha de status.
 
     Ativos citados na pergunta são consultados antes (prefetch_calls); depois, até max_rounds
-    rodadas em que o modelo pede ferramentas; na última, ele responde sem elas.
+    rodadas em que o modelo pede ferramentas; na última, ele responde sem elas. Propostas de
+    lançamento saem entre PROPOSAL_MARK, cada uma uma vez só.
     """
     convo = build_convo(messages, system_prompt)
     fetched: List[Dict[str, Any]] = []
+    proposed: set = set()
+    toolbox.question = messages[-1]["content"]
 
-    def run_calls(calls: List[Dict[str, Any]]):
+    def run_calls(calls: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         convo.append({"role": "assistant", "content": "", "tool_calls": [
             {"function": {"name": c["name"], "arguments": c["arguments"]}} for c in calls]})
+        proposals = []
         for c in calls:
             result = toolbox.run(c["name"], c["arguments"])
+            proposal = result.pop("_proposta", None)
+            if proposal:
+                key = json.dumps(proposal, sort_keys=True, ensure_ascii=False)
+                if key in proposed:  # o modelo pediu de novo na rodada seguinte
+                    result = {"situacao": "Essa proposta já está na tela, esperando o usuário confirmar."}
+                else:
+                    proposed.add(key)
+                    proposals.append(proposal)
             fetched.append({"ferramenta": c["name"], **result})
             convo.append({"role": "tool", "content": json.dumps(result, ensure_ascii=False), "tool_name": c["name"]})
+        return proposals
 
     forced = prefetch_calls(messages)
     if forced:
@@ -561,5 +783,7 @@ async def chat_with_tools(llm, messages: List[Dict[str, Any]], system_prompt: st
         done = {(c["name"], json.dumps(c["arguments"], sort_keys=True)) for c in forced}
         calls = [c for c in calls if (c["name"], json.dumps(c["arguments"], sort_keys=True)) not in done] or calls
         for c in calls:
-            yield _status(c["name"], c["arguments"])
-        run_calls(calls)
+            if c["name"] not in WRITE_TOOLS:  # lançamento aparece como proposta, não como consulta
+                yield _status(c["name"], c["arguments"])
+        for p in run_calls(calls):
+            yield _proposal(p)

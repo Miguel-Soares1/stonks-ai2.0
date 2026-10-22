@@ -130,6 +130,35 @@ def test_floating_chat_shares_the_conversation(page):
     assert page.errors == []
 
 
+
+def test_chat_proposal_is_saved_only_on_confirm(page, base_url):
+    """A IA propõe dois lançamentos (ADR 027): o confirmado é gravado; o cancelado, não."""
+    def proposal(desc, amount):
+        return "\x1d" + json.dumps({
+            "tipo": "transacao", "titulo": "Lançar despesa", "feito": "Despesa lançada.",
+            "linhas": [["Descrição", desc], ["Valor", amount, "BRL"]],
+            "corpo": {"description": desc, "amount": amount, "type": "expense", "date": date.today().isoformat(),
+                      "category_name": "Alimentação", "account_id": None},
+        }, ensure_ascii=False) + "\x1d"
+
+    body = "Preparei os lançamentos: confirme abaixo." + proposal("Padaria do teste", 12.5) + proposal("Feira do teste", 30)
+    page.route("**/api/chat", lambda r: r.fulfill(status=200, content_type="text/plain; charset=utf-8", body=body))
+    go(page, "assistente")
+    page.fill("#view textarea", "gastei 12,50 na padaria e 30 na feira")
+    page.keyboard.press("Enter")
+    cards = page.locator("#view .proposal")
+    cards.nth(1).wait_for()
+    assert "12,50" in cards.nth(0).inner_text()
+
+    cards.nth(0).locator("[data-confirm]").click()
+    page.wait_for_selector("#view .proposal-status.ok")
+    page.locator("#view .proposal").nth(1).locator("[data-cancel]").click()
+    page.wait_for_selector("#view .proposal-status:has-text('Cancelado')")
+
+    names = [t["description"] for t in call(base_url, "GET", "/api/transactions?days=3650")]
+    assert "Padaria do teste" in names and "Feira do teste" not in names
+    assert page.errors == []
+
 def test_hide_values_masks_money(page, base_url):
     call(base_url, "POST", "/api/transactions", {"description": "Salário", "amount": 5000, "type": "income"})
     page.reload()

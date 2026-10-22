@@ -93,6 +93,12 @@ seguimento ("e a VALE3?").
 Com o mesmo prompt, nas tarefas de texto (`run_eval`): qwen2.5:3b 100% em conceito e 100% em
 segurança; llama3.2:3b 95% e 100%. Por isso o padrão passou a ser o **qwen2.5:3b** (ADR 026).
 
+**Lançamentos (ADR 027, 21/10/2026, 61 casos com os 16 novos):** qwen2.5:3b 93% (57/61), com os
+11 pedidos de lançamento certos; llama3.2:3b 79%. Erros que viraram correção no código: o qwen
+mandava "recebi 3.500 de salário" como aporte numa meta "salário" (vira receita) e o modelo
+inventava a data do lançamento (sem data na pergunta, é hoje). Nos casos, `valor` e
+`preco_alvo` são comparados como número e `data` em dias atrás (1 = ontem).
+
 O que mudou o resultado, medido passo a passo:
 
 1. Descrição de cada ferramenta com exemplos de pergunta ("use para: quanto gastei este mês"): 70% → 76%.

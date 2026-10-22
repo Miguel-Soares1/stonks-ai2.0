@@ -24,7 +24,7 @@ StonksAI.exe
 | | Contas | Contas e cartões com saldo |
 | | Metas | Criar, editar, adicionar valor e acompanhar prazo |
 | | Alertas | Avisos de orçamento e metas; verificar agora e dispensar |
-| Assistente | Conversar com a IA | Chat com histórico; a resposta aparece enquanto é escrita. A IA **consulta o app** para responder: cotações e indicadores, quanto você gastou, contas, carteira, metas, orçamento e watchlist, além de uma calculadora; acima da resposta aparece o que ela consultou (ADR 026). A mesma conversa abre num painel flutuante pelo botão **Perguntar à IA**, sem sair da tela atual |
+| Assistente | Conversar com a IA | Chat com histórico; a resposta aparece enquanto é escrita. A IA **consulta o app** para responder: cotações e indicadores, quanto você gastou, contas, carteira, metas, orçamento e watchlist, além de uma calculadora; acima da resposta aparece o que ela consultou (ADR 026). Pedidos como "gastei 45 no iFood", "guardei 300 na meta da viagem" ou "adiciona a WEGE3 na watchlist" viram um cartão com **Confirmar** e **Cancelar**: nada é gravado antes do clique (ADR 027). A mesma conversa abre num painel flutuante pelo botão **Perguntar à IA**, sem sair da tela atual |
 | | Ajustes | Modelo da IA local (lista os modelos do Ollama com o tamanho), bolsa padrão, PIN, backup, **segundo plano** (fechar a janela deixa o app na bandeja; abrir com o Windows) e informações do sistema |
 
 Todas as respostas da IA chegam em **streaming**: o primeiro trecho aparece em menos de 1 segundo, em vez de esperar a resposta inteira.
@@ -158,7 +158,7 @@ desktop/
 | `GET/POST /api/accounts`, `PUT/DELETE /api/accounts/{id}` | Contas |
 | `GET/POST /api/goals`, `PUT/DELETE /api/goals/{id}`, `POST /api/goals/{id}/contribute` | Metas |
 | `GET /api/alerts`, `POST /api/alerts/check`, `POST /api/alerts/{id}/dismiss` | Alertas |
-| `POST /api/chat` | Conversa com a IA (streaming), com as ferramentas de `stonks_ai/llm/tools.py`; o que foi consultado vem entre caracteres `\x1e` |
+| `POST /api/chat` | Conversa com a IA (streaming), com as ferramentas de `stonks_ai/llm/tools.py`; o que foi consultado vem entre caracteres `\x1e`; propostas de lançamento, em JSON entre `\x1d` (gravadas pela tela, nas rotas de sempre, ao confirmar) |
 | `GET/PUT /api/settings`, `GET /api/settings/ollama-models` | Ajustes |
 | `GET /api/boot` | Tema, ocultar valores e estado do bloqueio (liberada com o app bloqueado) |
 | `GET /api/lock`, `POST /api/lock/unlock`, `POST /api/lock/lock`, `PUT /api/lock/pin`, `PUT /api/lock/timeout` | Bloqueio por PIN |

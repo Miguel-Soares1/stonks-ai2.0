@@ -102,7 +102,7 @@ python -m desktop.app
 
 - **Carteira:** importação dos extratos da B3, preço médio pelo método da Receita, resultado, proventos e rentabilidade contra CDI e Ibovespa
 - **Início:** saldo nas contas, quanto entrou e saiu, investimentos, ritmo de gastos, insight do mês, recorrentes, metas e watchlist
-- **Chat com a IA** em tela cheia ou num painel flutuante, com a resposta aparecendo enquanto é escrita. A IA consulta o próprio app: "quanto está a PETR4?", "quanto gastei com iFood este mês?", "como está minha meta?" (ADR 026)
+- **Chat com a IA** em tela cheia ou num painel flutuante, com a resposta aparecendo enquanto é escrita. A IA consulta o próprio app: "quanto está a PETR4?", "quanto gastei com iFood este mês?", "como está minha meta?" (ADR 026). Também prepara lançamentos ("gastei 45 no iFood", "guardei 300 na meta da viagem"), que só são gravados quando você clica em Confirmar (ADR 027)
 - **Privacidade:** botão para ocultar valores (`R$ ••••`), bloqueio por PIN; a IA roda só no seu computador
 - **Backup** semanal automático e restauração em Ajustes
 - Instalador em português, sem pedir administrador
@@ -349,9 +349,10 @@ Os testes rodam a cada push no GitHub Actions (`.github/workflows/testes.yml`), 
 - [x] **Criptomoedas na carteira** — BTC, ETH e outras 17, em reais (par em dólar × câmbio), na rentabilidade e no relatório do IR (ADR 024)
 - [x] **IA só local** — IAs na nuvem (DeepSeek, OpenAI) removidas: gratuito e nada sai do computador (ADR 025)
 - [x] **IA que consulta o app** — Cotações, indicadores, gastos, contas, carteira, metas, orçamento, watchlist e calculadora no chat; modelo padrão `qwen2.5:3b`, escolhido por medição (ADR 026)
+- [x] **IA que lança no app, com confirmação** — "gastei 45 no iFood", "guardei 300 na meta da viagem", "adiciona a WEGE3 na watchlist": a IA prepara e a tela mostra um cartão com Confirmar; nada é gravado antes do clique (ADR 027)
 
 ### 🔜 Próximos
-1. [ ] **IA que lança no app, com confirmação** — "anota um gasto de R$ 50 no mercado", "aporta R$ 200 na meta da viagem", "põe a WEGE3 na watchlist": a IA prepara a ação e a tela mostra um botão para confirmar antes de gravar. Hoje as ferramentas do chat só leem (ADR 026)
+Escolher entre os itens de "Depois".
 
 ### 📋 Depois
 - [ ] **Relatórios em PDF** — Se o Excel não bastar
